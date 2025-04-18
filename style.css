@@ -1,0 +1,813 @@
+body {
+    font-family: sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 1rem 0;
+    text-align: center;
+}
+
+.container {
+    max-width: 960px;
+    margin: 20px auto;
+    padding: 0 20px;
+}
+
+.card {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* --- Header Styles --- */
+header {
+    position: relative; /* Needed for absolute positioning of button if desired */
+}
+
+/* --- Hamburger Menu Button --- */
+.menu-button {
+    position: absolute; /* Position relative to header */
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #fff; /* Match header text */
+    font-size: 1.8em; /* Make icon larger */
+    cursor: pointer;
+    padding: 5px 10px;
+    z-index: 1100; /* Ensure button is above menu overlay */
+}
+.menu-button:hover {
+    color: #ccc;
+}
+
+/* --- Side Menu Styles --- */
+.side-menu {
+    position: fixed; /* Fixed position */
+    left: 0;
+    top: 0;
+    width: 250px; /* Menu width */
+    height: 100%;
+    background-color: #444; /* Slightly lighter than header */
+    box-shadow: 2px 0 5px rgba(0,0,0,0.5);
+    transform: translateX(-100%); /* Start off-screen to the left */
+    transition: transform 0.3s ease-in-out; /* Smooth transition */
+    z-index: 1200; /* Above content and overlay */
+    padding-top: 50px; /* Space for close button */
+    overflow-y: auto; /* Allow scrolling if many items */
+}
+
+.side-menu.open {
+    transform: translateX(0); /* Slide in */
+}
+
+.side-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.side-menu li a.nav-link {
+    display: block;
+    padding: 15px 20px;
+    color: #eee;
+    text-decoration: none;
+    border-bottom: 1px solid #555;
+    transition: background-color 0.2s ease;
+}
+
+.side-menu li a.nav-link:hover {
+    background-color: #555;
+    color: #fff;
+}
+.side-menu li a.nav-link.active-link {
+    background-color: #0056b3; /* Example: A distinct blue background */
+    color: #ffffff;
+    font-weight: bold; /* Make text bold */
+}
+
+.side-menu li a.nav-link.active-link:hover {
+    background-color: #004a99; /* Slightly darker blue on hover */
+}
+
+.menu-close-button {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    color: #eee;
+    font-size: 2em;
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+}
+.menu-close-button:hover {
+    color: #fff;
+}
+
+/* --- Overlay --- */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+    z-index: 1150; /* Below menu, above content */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease-in-out, visibility 0s linear 0.3s; /* Fade out */
+}
+
+.overlay.visible {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s ease-in-out; /* Fade in */
+}
+
+
+/* --- Ensure sections start hidden (adjust initial HTML too) --- */
+.main-section.hidden {
+    display: none;
+}
+/* Style for initially hidden sections */
+.hidden {
+    display: none;
+}
+
+#load-status {
+    margin-top: 15px;
+    font-style: italic;
+    color: #666;
+}
+
+#transactions-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+#transactions-table th,
+#transactions-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+#transactions-table th {
+    background-color: #e9ecef;
+}
+
+#transactions-table tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+#transactions-table th.th-action, /* Style for the new header */
+#transactions-table td.td-action { /* Style for the new cell */
+    width: 3em; /* Adjust width as needed */
+    text-align: center;
+    padding-left: 5px;
+    padding-right: 5px;
+    vertical-align: middle; /* Vertically center button */
+}
+
+/* Style for the delete button */
+.delete-tx-button {
+    background: none;
+    border: none;
+    color: #dc3545; /* Red color for delete */
+    cursor: pointer;
+    padding: 2px 5px;
+    font-size: 1.1em; /* Make icon slightly larger */
+    line-height: 1; /* Prevent extra spacing */
+    vertical-align: middle;
+    opacity: 0.7; /* Slightly transparent normally */
+    transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.delete-tx-button:hover {
+    color: #a71d2a; /* Darker red on hover */
+    opacity: 1; /* Fully opaque on hover */
+}
+
+.delete-tx-button:disabled {
+    color: #ccc;
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+/* Style for the Add Transaction form section */
+#add-expense-form h2,
+#sync-section h2 {
+    margin-top: 0; /* Remove default top margin for h2 inside card */
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    font-size: 1.3em;
+    color: #495057;
+}
+#transactions-table th.th-icon,
+#transactions-table td.td-icon {
+    width: 2em; /* Make the column narrow */
+    text-align: center;
+    padding-left: 5px; /* Reduce padding */
+    padding-right: 5px;
+}
+
+#transactions-table td.td-icon .fa-solid { /* Style the icon itself */
+    font-size: 0.9em; /* Slightly smaller icon */
+    vertical-align: middle; /* Align icon nicely */
+}
+
+/* Style for the textarea in the add form */
+#add-expense-form textarea {
+    width: 100%;
+    padding: 8px;
+    font-size: 0.95em;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    min-height: 60px; /* Give it some height */
+    resize: vertical; /* Allow vertical resizing */
+    font-family: sans-serif; /* Match other inputs */
+    margin-bottom: 10px; /* Spacing below textarea */
+}
+
+
+/* Style for the Sync section */
+#sync-section p {
+    margin-bottom: 10px; /* Space between paragraphs */
+}
+
+#add-tx-status,
+#export-status {
+    margin-top: 10px;
+}
+
+footer {
+    text-align: center;
+    margin-top: 30px;
+    padding: 15px;
+    color: #666;
+    font-size: 0.9em;
+}
+/* Status Message Styles */
+.status-info {
+    color: #004085; /* Blue */
+    background-color: #cce5ff;
+    border: 1px solid #b8daff;
+    padding: 5px 10px;
+    border-radius: 3px;
+    margin-top: 10px;
+    display: inline-block; /* Don't take full width */
+}
+.status-success {
+    color: #155724; /* Dark Green */
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    padding: 5px 10px;
+    border-radius: 3px;
+     margin-top: 10px;
+    display: inline-block;
+}
+.status-error {
+    color: #721c24; /* Dark Red */
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 5px 10px;
+    border-radius: 3px;
+     margin-top: 10px;
+    display: inline-block;
+}
+
+/* Currency Styling */
+.currency { /* Base class if needed */
+    font-family: monospace;
+    white-space: nowrap; /* Prevent wrapping */
+}
+.negative-currency {
+    color: #dc3545; /* Red */
+    font-family: monospace;
+     white-space: nowrap;
+}
+.positive-currency {
+    color: #28a745; /* Green */
+    font-family: monospace;
+     white-space: nowrap;
+}
+.zero-currency {
+    color: #6c757d; /* Gray */
+    font-family: monospace;
+     white-space: nowrap;
+}
+
+/* Dashboard Grid Layout */
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px; /* Space between boxes */
+    margin-top: 15px;
+}
+
+.summary-box {
+    background-color: #f8f9fa; /* Light background for boxes */
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+}
+
+.summary-box h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+.summary-value { /* Style for prominent values like RTA */
+     font-size: 1.6em;
+     font-weight: bold;
+     line-height: 1.2;
+     display: block; /* Ensure it takes its own line */
+     margin-bottom: 5px;
+}
+
+.summary-list { /* Style for lists like account balances */
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.95em;
+}
+.summary-list li {
+    padding: 3px 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+#month-summary p { /* Style for the income/spending lines */
+    margin-bottom: 8px;
+    font-size: 1em;
+    display: flex;
+    justify-content: space-between;
+}
+.summary-label { /* Style for "Total Income:", etc. */
+   color: #555;
+   margin-right: 10px;
+}
+
+#month-summary span { /* Style for the actual values */
+   font-weight: 500;
+}
+
+.filter-controls {
+    background-color: #f8f9fa; /* Use a light background like summary boxes */
+    padding: 15px 20px;
+    margin-bottom: 25px;
+}
+
+.filter-controls h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 10px;
+    font-size: 1.2em;
+    color: #495057;
+}
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); /* Responsive columns */
+    gap: 15px 20px; /* Row and column gap */
+    align-items: end; /* Align items to the bottom (looks good with button) */
+}
+
+/* Optional: Style form groups within the grid if needed */
+.filter-grid .form-group {
+    margin-bottom: 0; /* Remove default margin if your .form-group class adds one */
+}
+
+.filter-controls label {
+    font-size: 0.9em;
+    font-weight: bold;
+    margin-bottom: 3px;
+    color: #555;
+    display: block; /* Ensure label is above input */
+}
+
+.filter-controls input[type="text"],
+.filter-controls input[type="date"],
+.filter-controls select {
+    width: 100%; /* Make inputs fill grid cell */
+    padding: 8px;
+    font-size: 0.95em;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+
+.filter-controls button {
+    padding: 8px 15px; /* Match input height better */
+    width: 100%; /* Make button fill cell */
+    margin-top: 0; /* Remove default margin */
+}
+
+#no-results-message {
+     color: #6c757d; 
+}
+
+/* --- Styles for Budget View --- */
+#budget-view h2 { /* Style if needed, similar to other card headers */
+    margin-top: 0;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    font-size: 1.3em;
+    color: #495057;
+}
+
+#budget-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+#budget-table th,
+#budget-table td {
+    border: 1px solid #ddd;
+    padding: 8px 10px; /* Adjust padding as needed */
+    text-align: left;
+    vertical-align: middle; /* Align vertically in the middle */
+}
+
+#budget-table thead th {
+    background-color: #e9ecef;
+}
+
+/* Ensure right-alignment for currency columns */
+#budget-table th.currency,
+#budget-table td.currency {
+    text-align: right;
+}
+
+#budget-table tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+/* Style for the totals footer row */
+#budget-table tfoot tr {
+    font-weight: bold;
+    background-color: #e9ecef;
+    border-top: 2px solid #ccc; /* More distinct separator */
+}
+
+#budget-table tfoot th {
+    text-align: left;
+}
+
+#budget-table tbody tr.budget-group-header td {
+    background-color: #f0f0f0; /* Slightly different background */
+    font-weight: bold;
+    color: #444;
+    padding-top: 12px;      /* More space above group name */
+    padding-bottom: 6px;
+    padding-left: 8px;      /* Align with other cells */
+    border-top: 2px solid #ccc; /* Strong separator above */
+    border-bottom: 1px solid #ddd; /* Line below header */
+    text-align: left;       /* Explicitly left-align */
+    font-size: 0.95em;      /* Slightly smaller than main headers */
+}
+
+/* Remove top border from the very first group header */
+#budget-table tbody tr.budget-group-header:first-child td {
+    border-top: none;
+}
+
+/* Optional: Add a little space between header and first data row */
+#budget-table tbody tr.budget-group-header + tr td {
+     padding-top: 8px;
+}
+
+/* Ensure category name cell still looks okay */
+#budget-table tbody td:first-child {
+    /* padding-left: 10px; /* Optional indent for categories */
+}
+/* Style for overspent 'Available' cells in the budget table */
+#budget-table td.overspent-available {
+    background-color: #f8d7da; 
+    color: #721c24;      
+    font-weight: bold;   
+}
+
+/* Style for savings goal rows */
+#budget-tbody tr.savings-goal-row td {
+    background-color: #e8f5e9;
+    font-style: italic;
+    color: #0c5460;
+}
+
+#budget-no-data {
+     color: #6c757d;
+}
+
+/* --- Chart Section Styles --- */
+
+#charts-section h2 { /* Style if needed, similar to other card headers */
+    margin-top: 0;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    font-size: 1.3em;
+    color: #495057;
+}
+
+/* Style the container div if you didn't use inline styles */
+#spending-chart-container {
+    position: relative; /* Needed for Chart.js responsiveness */
+    margin: 20px auto; /* Center the chart container */
+}
+
+#chart-no-data {
+     color: #6c757d; /* Gray text */
+}
+/* --- Responsive Table Styles --- */
+
+/* Apply only on screens smaller than, say, 768px */
+@media (max-width: 768px) {
+
+    .table-responsive-wrapper {
+        width: 100%; /* Ensure wrapper takes full width of its container */
+        overflow-x: auto; /* Enable horizontal scrolling ONLY when needed */
+        overflow-y: auto;
+        max-height: 65vh; /* ADD a max height - Adjust as needed (e.g., 500px, 70vh) */
+        -webkit-overflow-scrolling: touch; /* Improves scrolling feel on iOS */
+        border: 1px solid #eee; /* Optional: subtle border to indicate scroll area */
+        margin-bottom: 1em; /* Add some space below the scrolling table */
+        position: relative; /* Good practice for positioning children */
+    }
+    
+    /* Style the table headers */
+    #transactions-table thead th,
+    #budget-table thead th {
+        position: -webkit-sticky; /* Safari */
+        position: sticky;
+        top: 0; /* Stick to the top of the scrolling container (.table-responsive-wrapper) */
+        z-index: 10; /* Ensure header is above table body content */
+    }
+
+    #transactions-table thead th:last-child, /* Target last header cell */
+    #transactions-table tfoot td:last-child,
+    #transactions-table tfoot th:last-child {
+        /* Ensure sticky positioning applies if you are using it */
+        position: -webkit-sticky; /* Safari */
+        position: sticky;
+    }
+    
+    /* Ensure the table inside uses available width but can grow */
+    .table-responsive-wrapper table {
+        width: 100%; /* Use full width of the wrapper */
+    }
+
+    /* Optional refinements for mobile tables */
+    #transactions-table th,
+    #transactions-table td,
+    #budget-table th,
+    #budget-table td {
+        padding: 6px 8px; /* Slightly reduce padding */
+        font-size: 0.9em; /* Slightly smaller font */
+        white-space: nowrap; /* Prevent text wrapping in cells - forces scroll */
+    }
+    #transactions-table th.th-action,
+    #transactions-table td.td-action {
+        width: 2.5em; /* Slightly smaller on mobile */
+    }
+    .delete-tx-button {
+        font-size: 1em; /* Slightly smaller icon on mobile */
+    }
+
+    /* Allow wrapping specifically for longer text columns if needed */
+    /* Example: Allow Payee in transactions table to wrap */
+     #transactions-table td:nth-child(4), /* Assuming Payee is the 4th column */
+     #transactions-table th:nth-child(4) {
+         white-space: normal;
+     }
+     /* Example: Allow Category Name in budget table to wrap */
+      #budget-table td:first-child,
+      #budget-table th:first-child {
+          white-space: normal;
+      }
+
+    /* Ensure currency columns remain nowrap */
+    #transactions-table th.currency,
+    #transactions-table td.currency,
+    #budget-table th.currency,
+    #budget-table td.currency {
+        white-space: nowrap;
+    }
+
+    #transactions-table th.th-icon,
+    #transactions-table td.td-icon {
+        width: 1.8em; /* Even narrower on mobile maybe */
+        padding-left: 4px;
+        padding-right: 4px;
+    }
+    #transactions-table td.td-icon .fa-solid {
+        font-size: 0.85em;
+    }
+
+    /* Adjust padding on adjacent cell if needed */
+    #transactions-table th:nth-child(2), /* Header for Date */
+    #transactions-table td:nth-child(2) { /* Cell for Date */
+        padding-left: 4px; /* Reduce space next to icon */
+    }
+
+    #manage-accounts-section h3 {
+        margin-top: 20px; /* Add space above sub-headings */
+        margin-bottom: 10px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 5px;
+        font-size: 1.2em;
+    }
+    
+    #manage-accounts-section #add-account-form {
+        background-color: #f8f9fa; /* Slightly different background for form area */
+        padding: 15px;
+        border-radius: 4px;
+        border: 1px solid #e9ecef;
+    }
+    
+    #existing-accounts-list {
+        /* Inherits .summary-list styles, which is good */
+        max-height: 300px; /* Prevent super long lists */
+        overflow-y: auto;
+    }
+
+    #manage-categories-section h3 { /* Style for "Add New Category" and "Existing..." */
+        margin-top: 20px;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 5px;
+        font-size: 1.2em;
+    }
+    
+    #manage-categories-section #add-category-form {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        border: 1px solid #e9ecef;
+    }
+    
+    /* Styling for the grouped category list */
+    .category-group-block {
+        margin-bottom: 15px;
+        padding: 10px;
+        background-color: #f9f9f9;
+        border: 1px solid #eee;
+        border-radius: 3px;
+    }
+    
+    .category-group-block h4 { /* Group Name Heading */
+        margin-top: 0;
+        margin-bottom: 8px;
+        font-size: 1.05em;
+        color: #555;
+        border-bottom: 1px dashed #ddd;
+        padding-bottom: 4px;
+    }
+    
+    .category-group-block ul {
+        list-style: none;
+        padding-left: 10px; /* Indent category names slightly */
+        margin: 0;
+    }
+    
+    .category-group-block li {
+        padding: 3px 0;
+        font-size: 0.95em;
+    }
+    
+    .category-list-item {
+        display: flex; /* Use flexbox for alignment */
+        align-items: center; /* Vertically align items */
+        justify-content: space-between; /* Space out elements */
+        padding: 5px 0;
+        border-bottom: 1px dotted #eee; /* Separator */
+        flex-wrap: wrap; /* Allow wrapping on small screens */
+        gap: 10px; /* Add gap between items */
+    }
+    
+    .category-list-item:last-child {
+        border-bottom: none;
+    }
+    
+    .category-list-item .category-name {
+        flex-grow: 1; /* Allow name to take up space */
+        font-weight: 500;
+        min-width: 120px; /* Ensure name has some minimum width */
+    }
+    
+    .category-list-item .category-group-changer {
+        padding: 4px 6px;
+        font-size: 0.9em;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        min-width: 150px; /* Give dropdown enough width */
+        flex-shrink: 0; /* Prevent dropdown from shrinking too much */
+    }
+    
+    .category-list-item .button-small { /* Make button less imposing */
+        padding: 3px 8px;
+        font-size: 0.85em;
+        flex-shrink: 0;
+    }
+    
+    .category-list-item .item-status {
+        font-size: 0.8em;
+        margin-left: 10px; /* Space status message */
+        flex-basis: 100%; /* Let status take full width on wrap */
+        text-align: right;
+        min-height: 1.2em; /* Reserve space even when empty */
+        color: #155724; 
+    }
+    .category-list-item .item-status.error {
+         color: #721c24; 
+    }
+    .category-list-item .item-status.info {
+         color: #004085; 
+    }
+    .view-header-nav {
+        display: flex; /* Use flexbox for alignment */
+        align-items: center;
+        justify-content: space-between; /* Space out buttons and title */
+        flex-wrap: wrap; /* Allow wrapping if needed */
+        gap: 15px; /* Space between elements */
+        /* Inherits h2 font size etc. */
+        margin-bottom: 15px; /* Add space below header */
+         border-bottom: 1px solid #eee;
+         padding-bottom: 10px;
+    }
+    
+    .view-header-nav span { /* Target the title span */
+        flex-grow: 1; /* Allow title to take available space */
+        text-align: center; /* Center the title */
+    }
+    
+    .nav-button { /* Style the Prev/Next buttons */
+        padding: 4px 10px;
+        font-size: 0.9em;
+        flex-shrink: 0; /* Prevent buttons from shrinking too much */
+        background-color: #eee;
+        border: 1px solid #ccc;
+        color: #333;
+    }
+    
+    .nav-button:hover {
+        background-color: #ddd;
+    }
+    
+    .nav-button:disabled {
+        background-color: #f8f8f8;
+        border-color: #e0e0e0;
+        color: #bbb;
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+
+    /* Style for editable cells */
+td.editable-budget {
+    cursor: pointer;
+    background-color: #e9f5ff; /* Light blue background to indicate editable */
+    transition: background-color 0.2s ease;
+}
+
+td.editable-budget:hover {
+    background-color: #d0eaff; /* Slightly darker on hover */
+}
+
+/* Style for the input field when editing */
+td.editable-budget input[type="number"] {
+    width: 95%; /* Fill most of the cell */
+    padding: 4px 6px;
+    font-size: inherit; /* Match table font size */
+    font-family: monospace; /* Match currency style */
+    text-align: right; /* Align right like currency */
+    border: 1px solid #007bff; /* Blue border to highlight */
+    border-radius: 3px;
+    box-sizing: border-box; /* Include padding/border in width */
+    /* Remove spinner arrows (optional) */
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+td.editable-budget input[type="number"]::-webkit-outer-spin-button,
+td.editable-budget input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+}
