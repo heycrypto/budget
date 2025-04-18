@@ -143,7 +143,7 @@ header {
 }
 /* Style for initially hidden sections */
 .hidden {
-    display: none;
+      display: none !important; /* Use !important to override potential conflicting styles */
 }
 
 #load-status {
@@ -242,6 +242,14 @@ header {
     margin-bottom: 10px; /* Spacing below textarea */
 }
 
+/* Optional: Style adjustments for the add form when Transfer is selected */
+#add-expense-form .form-group select#tx-transfer-to-account {
+    width: 100%;
+    padding: 8px;
+    font-size: 0.95em;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
 
 /* Style for the Sync section */
 #sync-section p {

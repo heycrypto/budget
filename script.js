@@ -26,7 +26,11 @@ const newTxForm = document.getElementById('new-tx-form');
 const txTypeSelect = document.getElementById('tx-type');
 const txDateInput = document.getElementById('tx-date');
 const txAccountSelect = document.getElementById('tx-account');
+const payeeGroup = document.getElementById('payee-group');
+const payeeLabel = document.getElementById('payee-label');
 const txPayeeInput = document.getElementById('tx-payee');
+const txTransferToAccountSelect = document.getElementById('tx-transfer-to-account');
+const categoryGroup = document.getElementById('category-group');
 const txCategorySelect = document.getElementById('tx-category');
 const txAmountInput = document.getElementById('tx-amount');
 const txMemoInput = document.getElementById('tx-memo');
@@ -214,6 +218,8 @@ async function initializeApp() {
     // Show the dashboard by default after loading
     if (dashboardSection) dashboardSection.classList.remove('hidden');
     setActiveNavLink('dashboard-summary'); // Activate dashboard link
+    if(txTypeSelect) updateAddFormForTxType(txTypeSelect.value);
+
 
     console.log("Application initialization complete.");
 }
@@ -326,12 +332,23 @@ function setupAddFormListeners() {
     if (newTxForm) newTxForm.addEventListener('submit', handleAddTransaction);
     if (txDateInput) txDateInput.valueAsDate = new Date(); // Default date
 
-    // --- Add listener for type change ---
-    if (txTypeSelect) {
+     // --- Listener for TYPE change ---
+     if (txTypeSelect) {
         txTypeSelect.addEventListener('change', (event) => {
-            updateCategoryDropdownForTxType(event.target.value);
+            updateAddFormForTxType(event.target.value); // Call the main update function
         });
-        updateCategoryDropdownForTxType(txTypeSelect.value);
+        // Set initial form state based on default type
+        updateAddFormForTxType(txTypeSelect.value);
+    }
+
+    // --- Listener for FROM ACCOUNT change (to update TO ACCOUNT dropdown) ---
+    if (txAccountSelect) {
+        txAccountSelect.addEventListener('change', () => {
+            // If the type is currently 'transfer', update the 'To' dropdown
+            if (txTypeSelect && txTypeSelect.value === 'transfer') {
+                populateTransferToAccountDropdown();
+            }
+        });
     }
 }
 
@@ -1803,7 +1820,6 @@ function displayTransactions(displayTransactions = []) {
     if (!transactionsTbody) return;
     transactionsTbody.innerHTML = '';
 
-    // All transactions are from the main store, none are "pending"
     let combinedForSort = displayTransactions.map(tx => ({
         ...tx,
         db_id: tx.id // This 'id' comes from the main transaction store's keyPath
@@ -1827,59 +1843,68 @@ function displayTransactions(displayTransactions = []) {
         return String(idB).localeCompare(String(idA));
      });
 
-    sortedTransactions.forEach(tx => {
+     sortedTransactions.forEach(tx => {
         const row = transactionsTbody.insertRow();
         const transactionDbId = tx.db_id;
+        const txType = tx.type || 'unknown'; // Use txType variable consistently
+        const isTransfer = txType === 'transfer';
 
         // Store data attributes
         const txDate = tx.date || '';
-        let txAccount = ''; let displayAccount = 'N/A';
-        const txType = tx.type || 'unknown'; // Use txType variable consistently
-        if (txType === 'transfer') { /* Handle transfer display */ }
-        else { txAccount = tx.account || ''; displayAccount = txAccount; }
-        const txCategory = tx.category || (txType === 'transfer' ? '' : UNCATEGORIZED);
-        const txPayee = tx.payee || (txType === 'transfer' ? 'Transfer' : '');
+        const fromAccount = tx.account || ''; // Account is always 'From'
+        const toAccountOrPayee = tx.payee || ''; // Payee holds 'To' account for transfers
+        const txCategory = isTransfer ? null : (tx.category || UNCATEGORIZED);
         const txMemo = tx.memo || '';
-        row.dataset.date = txDate; row.dataset.account = txAccount; row.dataset.category = txCategory;
-        row.dataset.payee = txPayee; row.dataset.memo = txMemo;
+
+        row.dataset.date = txDate;
+        row.dataset.account = fromAccount; // Store 'from' account
+        row.dataset.category = txCategory || '';
+        // Store payee/toAccount differently? Maybe store both if needed for filtering?
+        row.dataset.payee = isTransfer ? `Transfer to: ${toAccountOrPayee}` : toAccountOrPayee;
+        row.dataset.memo = txMemo;
         row.dataset.dbId = transactionDbId;
+        row.dataset.type = txType; // Store type for potential filtering
 
         // Populate Cells (with icon)
         const cellIcon = row.insertCell(0); cellIcon.classList.add('td-icon');
-
-        // --- Ensure this line is present ---
         const icon = document.createElement('i');
-        // ---------------------------------
-
         icon.classList.add('fa-solid');
         let iconClass = 'fa-question-circle';
-        let iconTitle = txType.charAt(0).toUpperCase() + txType.slice(1); // Use txType variable
-        let iconColor = '#6c757d';
-        switch (txType) { // Use txType variable
+        let iconTitle = txType.charAt(0).toUpperCase() + txType.slice(1);
+        let iconColor = '#6c757d'; // Default grey
+
+        switch (txType) {
             case 'income': iconClass = 'fa-arrow-down'; iconColor = '#28a745'; break;
             case 'expense': iconClass = 'fa-arrow-up'; iconColor = '#dc3545'; break;
             case 'refund': iconClass = 'fa-rotate-left'; iconColor = '#17a2b8'; break;
-            case 'transfer': iconClass = 'fa-exchange-alt'; iconColor = '#6c757d'; break;
+            case 'transfer': iconClass = 'fa-exchange-alt'; iconColor = '#007bff'; break; // Use a different color (e.g., blue) for transfers
         }
         icon.classList.add(iconClass);
         icon.style.color = iconColor;
         icon.title = iconTitle;
         icon.setAttribute('aria-label', iconTitle);
-        cellIcon.appendChild(icon); // Now 'icon' exists
+        cellIcon.appendChild(icon);
 
         const cellDate = row.insertCell(1); cellDate.textContent = txDate || 'N/A';
-        const cellAccount = row.insertCell(2); cellAccount.textContent = displayAccount; if (txType === 'transfer') cellAccount.style.fontStyle = 'italic';
-        const cellPayee = row.insertCell(3); cellPayee.textContent = txPayee || txMemo || 'N/A';
-        const cellCategory = row.insertCell(4); cellCategory.textContent = txCategory || '-';
+        const cellAccount = row.insertCell(2); cellAccount.textContent = fromAccount; // Always show 'From' account
+        const cellPayee = row.insertCell(3);
+        // Display "Transfer to: [Account]" for transfers, otherwise payee/memo
+        cellPayee.textContent = isTransfer ? `Transfer to: ${toAccountOrPayee}` : (toAccountOrPayee || txMemo || 'N/A');
+        if (isTransfer) cellPayee.style.fontStyle = 'italic';
+
+        const cellCategory = row.insertCell(4); cellCategory.textContent = isTransfer ? '-' : (txCategory || '-'); // Show dash for transfers
         const cellAmount = row.insertCell(5); cellAmount.textContent = formatCurrency(tx.amount || 0);
         cellAmount.style.textAlign = 'right'; cellAmount.style.fontFamily = 'monospace';
-        switch(txType) { // Use txType variable
-             case 'income': cellAmount.classList.add('positive-currency'); break;
-             case 'expense': cellAmount.classList.add('negative-currency'); break;
-             case 'refund': cellAmount.classList.add('positive-currency'); break;
-             case 'transfer': cellAmount.classList.add('zero-currency'); break;
-             default: cellAmount.classList.add('zero-currency');
+
+        // Assign currency class based on type
+        let amountClass = 'zero-currency'; // Default to neutral
+        switch(txType) {
+             case 'income': amountClass = 'positive-currency'; break;
+             case 'expense': amountClass = 'negative-currency'; break;
+             case 'refund': amountClass = 'positive-currency'; break; // Treat refund amount display like income
+             // Keep transfer as neutral/zero
          }
+        cellAmount.classList.add(amountClass);
 
          // --- DELETE BUTTON CELL ---
         const cellAction = row.insertCell(6);
@@ -1976,9 +2001,11 @@ function populateCategoryFilter(categories = [], transactions = [], selectElemen
  * @param {string} selectedType The value from the tx-type select ('income', 'expense', 'refund').
  */
 function updateCategoryDropdownForTxType(selectedType) {
-    if (!txCategorySelect) return;
+    if (selectedType === 'transfer' || !txCategorySelect) {
+        return; // Do nothing if it's a transfer or element missing
+    }
 
-    const data = localBudgetData; // Always use localBudgetData now
+    const data = localBudgetData; 
 
     if (!data || !data.categories || !data.category_groups) {
         console.warn("Cannot update category dropdown: Missing category data.");
@@ -2150,100 +2177,178 @@ async function loadDataFromDB() {
    });
 }
 
-/** Saves a transaction directly and updates state */
+/** Saves a transaction (expense, income, refund, or transfer) and updates state */
 async function saveTransactionStandalone(transaction) {
-    console.warn("Standalone save transaction ");
-    updateStatus("Adding transaction ...", "info");
+    updateStatusMessage(addTxStatusDiv, "Adding transaction to database...", "info"); // Update status specifically for this operation
 
-    // 1. Add transaction to TX_STORE_NAME
-    // 2. Update account balance in ACCOUNT_STORE_NAME
-    // 3. Update RTA in METADATA_STORE_NAME (if income)
-    // 4. Reload data from DB to refresh UI (simplest for now)
-
-    // Placeholder: Just add to transaction store for now
     return new Promise(async (resolve, reject) => {
-       if (!db) return reject("Database not initialized.");
-       // Remove temporary pending status if present
-       delete transaction.status;
-       transaction.entry_timestamp = new Date().toISOString(); // Add timestamp
+        if (!db) {
+            console.error("saveTransactionStandalone: Database not initialized.");
+            return reject("Database not initialized.");
+        }
 
-        const tx = db.transaction([TX_STORE_NAME, ACCOUNT_STORE_NAME, METADATA_STORE_NAME], 'readwrite');
+        // Remove temporary pending status if present (though likely not used here)
+        delete transaction.status;
+        transaction.entry_timestamp = new Date().toISOString(); // Add timestamp
+
+        const isTransfer = transaction.type === 'transfer';
+        // Determine required stores: Transfers don't need METADATA
+        const storeNames = isTransfer
+            ? [TX_STORE_NAME, ACCOUNT_STORE_NAME]
+            : [TX_STORE_NAME, ACCOUNT_STORE_NAME, METADATA_STORE_NAME];
+
+        let tx; // Declare transaction variable outside try block
+        try {
+             tx = db.transaction(storeNames, 'readwrite');
+        } catch (dbError) {
+             console.error("saveTransactionStandalone: Failed to start DB transaction.", dbError);
+             return reject(`Database transaction error: ${dbError.message}`);
+        }
+
         const txStore = tx.objectStore(TX_STORE_NAME);
         const accStore = tx.objectStore(ACCOUNT_STORE_NAME);
-        const metaStore = tx.objectStore(METADATA_STORE_NAME);
+        // Only get metaStore if needed (not a transfer)
+        const metaStore = !isTransfer ? tx.objectStore(METADATA_STORE_NAME) : null;
 
-        // Add the transaction
-       const addRequest = txStore.add(transaction);
+        const amount = parseFloat(transaction.amount || 0);
+        const fromAccountName = transaction.account;
+        // Payee holds the 'to' account name *only* for transfers
+        const toAccountName = isTransfer ? transaction.payee : null;
 
-       addRequest.onsuccess = async (event) => {
-           const newTxId = event.target.result;
-            console.log("Standalone TX added to store, ID:", newTxId);
+        // --- Add the transaction record first ---
+        const addRequest = txStore.add(transaction);
 
-            // Now update account and RTA (basic implementation)
-            const amount = parseFloat(transaction.amount || 0);
-            const accountName = transaction.account;
-            const txType = transaction.type;
+        addRequest.onerror = (event) => {
+            console.error("Error adding transaction record:", event.target.error); 
+            tx.abort(); // Abort the transaction
+            reject(`Error saving transaction record: ${event.target.error}`);
+        };
+
+        addRequest.onsuccess = async (event) => {
+            const newTxId = event.target.result;
 
             try {
-                // Get account
-                const accGetReq = accStore.get(accountName);
-                accGetReq.onsuccess = (eAcc) => {
-                    const accountData = eAcc.target.result;
-                    if (accountData) {
-                        // Update balance
-                        if (txType === 'income' || txType === 'refund') {
-                            accountData.balance += amount;
-                        } else if (txType === 'expense') {
-                            accountData.balance -= amount;
-                        }
-                        // Put updated account back
-                        accStore.put(accountData);
-                        console.log(`Updated balance for account ${accountName} to ${accountData.balance}`);
+                if (isTransfer) {
+                    // --- Transfer Logic ---
+                    // 1. Decrease balance of 'From' account
+                    const fromAccData = await getAccountData(accStore, fromAccountName);
+                    if (!fromAccData) throw new Error(`Source account '${fromAccountName}' not found.`);
+                    fromAccData.balance -= amount;
+                    await putAccountData(accStore, fromAccData);
 
-                         // Update RTA if income
-                        if (txType === 'income') {
-                            const metaGetReq = metaStore.get('appData');
-                            metaGetReq.onsuccess = (eMeta) => {
-                                const metadata = eMeta.target.result || { key: 'appData', ready_to_assign: 0.0 };
-                                metadata.ready_to_assign += amount;
-                                metaStore.put(metadata);
-                                console.log(`Updated RTA to ${metadata.ready_to_assign}`);
-                            };
-                            metaGetReq.onerror = (eMetaErr) => console.error("Error getting metadata for RTA update:", eMetaErr.target.error);
-                        }
-
+                    // 2. Increase balance of 'To' account
+                    const toAccData = await getAccountData(accStore, toAccountName);
+                    if (!toAccData) throw new Error(`Destination account '${toAccountName}' not found.`);
+                    toAccData.balance += amount;
+                    await putAccountData(accStore, toAccData);
+                } else {
+                    // --- Expense/Income/Refund Logic ---
+                    const accountData = await getAccountData(accStore, fromAccountName);
+                    if (!accountData) {
+                         console.warn(` -> Account '${fromAccountName}' not found for balance update. Balance may be incorrect.`);
+                         // Decide if RTA update should still happen? For income, probably yes.
                     } else {
-                        console.warn(`Account '${accountName}' not found for balance update.`);
-                        // Optionally create the account here?
+                         // Update balance based on type
+                         const originalBalance = accountData.balance;
+                         if (transaction.type === 'income' || transaction.type === 'refund') {
+                             accountData.balance += amount;
+                         } else if (transaction.type === 'expense') {
+                             accountData.balance -= amount;
+                         }
+                         await putAccountData(accStore, accountData);
                     }
-                };
-                 accGetReq.onerror = (eAccErr) => console.error(`Error getting account ${accountName}:`, eAccErr.target.error);
+
+                    // Update RTA if income
+                    if (transaction.type === 'income') {
+                         if (!metaStore) throw new Error("Metadata store not available for RTA update."); // Safety check
+                         const metadata = await getMetadata(metaStore);
+                         const originalRTA = metadata.ready_to_assign;
+                         metadata.ready_to_assign += amount;
+                         await putMetadata(metaStore, metadata);
+                    }
+                }
+                // If all updates succeed, the transaction will complete below.
 
             } catch (updateError) {
-                 console.error("Error during account/RTA update:", updateError);
-                 // Transaction might still be saved, but state update failed.
+                console.error("Error during account/RTA update:", updateError); // Log 8: Update Error
+                tx.abort(); // Abort transaction on error during updates
+                // Reject the main promise here, as oncomplete won't fire after abort
+                reject(`Failed during balance/RTA update: ${updateError.message}`);
+                return; // Prevent further execution in this path
             }
-
-            resolve(newTxId); // Resolve with the new transaction ID
-        };
-        addRequest.onerror = (event) => {
-            console.error("Error saving standalone tx:", event.target.error);
-            reject("Error saving transaction.");
-        };
+        }; // End addRequest.onsuccess
 
         tx.oncomplete = () => {
-            console.log("Standalone save transaction complete.");
-            // Reload data to reflect changes (simplest approach)
+            // Update status and reset form ONLY on successful completion
+            updateStatusMessage(addTxStatusDiv, "Transaction added successfully.", "success");
+            if (newTxForm) {
+                newTxForm.reset();
+                if(txDateInput) txDateInput.valueAsDate = new Date();
+                // Reset form UI state based on the type that was just added
+                if(txTypeSelect) updateAddFormForTxType(txTypeSelect.value);
+            }
+            // Reload data to reflect changes AFTER success
             loadDataFromDB().catch(console.error);
-            updateStatusMessage(addTxStatusDiv, "Transaction added.", "success"); 
-            newTxForm.reset(); txDateInput.valueAsDate = new Date(); // Clear form
+            resolve(); // Resolve the main promise
         };
+
         tx.onerror = (event) => {
-            console.error("Standalone save transaction error:", event.target.error);
-             updateStatus("Error saving transaction: " + event.target.error, "error");
-            reject("Transaction failed.");
+            // This catches errors from the transaction itself (e.g., if aborted by an earlier error)
+            console.error("Save transaction DB transaction error:", event.target.error); // Log 10: Transaction Error
+            // Update status to show failure
+            updateStatusMessage(addTxStatusDiv, `Error saving transaction: ${event.target.error || 'Unknown DB error'}`, "error");
+            // Reject the main promise - it might have been rejected already by updateError, but this is a fallback
+            reject(`Database Transaction failed: ${event.target.error || 'Unknown reason'}`);
+        };
+    }); // End Promise
+}
+
+// --- Helper functions for DB operations within saveTransactionStandalone ---
+function getAccountData(store, accountName) {
+    return new Promise((resolve, reject) => {
+        if (!accountName) return reject("Account name is missing for getAccountData"); // Added check
+        const req = store.get(accountName);
+        req.onsuccess = (e) => resolve(e.target.result); // Can be undefined if not found, handled by caller
+        req.onerror = (e) => {
+            console.error(`Error getting account ${accountName}:`, e.target.error);
+            reject(new Error(`DB error getting account ${accountName}: ${e.target.error}`));
         };
     });
+}
+
+function putAccountData(store, accountData) {
+    return new Promise((resolve, reject) => {
+         if (!accountData || !accountData.name) return reject("Invalid account data for putAccountData"); // Added check
+        const req = store.put(accountData);
+        req.onsuccess = () => resolve();
+        req.onerror = (e) => {
+             console.error(`Error putting account ${accountData?.name}:`, e.target.error);
+             reject(new Error(`DB error putting account ${accountData.name}: ${e.target.error}`));
+        };
+    });
+}
+
+function getMetadata(store) {
+    return new Promise((resolve, reject) => {
+       const req = store.get('appData');
+       req.onsuccess = (e) => resolve(e.target.result || { key: 'appData', ready_to_assign: 0.0 }); // Return default if not found
+       req.onerror = (e) => {
+           console.error("Error getting metadata:", e.target.error);
+           reject(new Error(`DB error getting metadata: ${e.target.error}`));
+       };
+   });
+}
+
+function putMetadata(store, metadata) {
+    return new Promise((resolve, reject) => {
+       if (!metadata || metadata.key !== 'appData') return reject("Invalid metadata for putMetadata"); // Added check
+       const req = store.put(metadata);
+       req.onsuccess = () => resolve();
+       req.onerror = (e) => {
+            console.error("Error putting metadata:", e.target.error);
+            reject(new Error(`DB error putting metadata: ${e.target.error}`));
+       };
+   });
 }
 
 /** Exports all data from IndexedDB */
@@ -2356,7 +2461,6 @@ async function clearAllStandaloneData() {
         });
 
         transaction.oncomplete = () => {
-            console.log("Standalone data clearing transaction complete.");
             localBudgetData = null; // Clear in-memory data too
             resolve();
         };
@@ -2369,23 +2473,21 @@ async function clearAllStandaloneData() {
 
 // --- Delete Transaction ---
 /**
- * Deletes a transaction from the main store and adjusts account balance and RTA accordingly.
- * Reloads all data afterwards to refresh the UI. 
+ * Deletes a transaction and adjusts balances/RTA accordingly. NOW HANDLES TRANSFERS.
+ * Reloads all data afterwards to refresh the UI.
  * @param {number} transactionId The ID (keyPath value) of the transaction to delete.
  * @returns {Promise<void>}
  */
 function deleteTransactionStandalone(transactionId) {
     return new Promise(async (resolve, reject) => {
         if (!db) return reject("Database not initialized.");
-
         if (typeof transactionId !== 'number' || isNaN(transactionId)) {
             return reject("Invalid ID provided for standalone deletion.");
         }
 
-        const transaction = db.transaction(
-            [TX_STORE_NAME, ACCOUNT_STORE_NAME, METADATA_STORE_NAME],
-            'readwrite'
-        );
+        // Determine necessary stores based on potential transaction type
+        const storeNames = [TX_STORE_NAME, ACCOUNT_STORE_NAME, METADATA_STORE_NAME];
+        const transaction = db.transaction(storeNames, 'readwrite');
         const txStore = transaction.objectStore(TX_STORE_NAME);
         const accStore = transaction.objectStore(ACCOUNT_STORE_NAME);
         const metaStore = transaction.objectStore(METADATA_STORE_NAME);
@@ -2394,122 +2496,94 @@ function deleteTransactionStandalone(transactionId) {
 
         // 1. Get the transaction data BEFORE deleting it
         const getReq = txStore.get(transactionId);
-
-        getReq.onerror = (event) => {
-            console.error(`Error fetching transaction ID ${transactionId} for deletion:`, event.target.error);
-            transaction.abort();
-            reject(`Could not find transaction to delete: ${event.target.error}`);
-        };
-
-        getReq.onsuccess = (event) => {
+        getReq.onerror = (event) => reject(`Could not find transaction to delete: ${event.target.error}`);
+        getReq.onsuccess = async (event) => {
             deletedTxData = event.target.result;
+            if (!deletedTxData) return reject(`Transaction with ID ${transactionId} not found.`);
 
-            if (!deletedTxData) {
-                transaction.abort();
-                return reject(`Transaction with ID ${transactionId} not found.`);
-            }
-
-            // 2. Delete the transaction itself
+            // 2. Delete the transaction record
             const deleteReq = txStore.delete(transactionId);
-            deleteReq.onerror = (event) => {
-                console.error(`Error deleting transaction ID ${transactionId} from store:`, event.target.error);
-                transaction.abort();
-                reject(`Failed to delete transaction record: ${event.target.error}`);
-            };
-
-            deleteReq.onsuccess = () => {
+            deleteReq.onerror = (event) => reject(`Failed to delete transaction record: ${event.target.error}`);
+            deleteReq.onsuccess = async () => {
                 console.log(`Transaction record ID ${transactionId} deleted.`);
 
-                // 3. Adjust Account Balance
+                // 3. Adjust Balances / RTA based on type
                 const amount = parseFloat(deletedTxData.amount || 0);
-                const accountName = deletedTxData.account;
                 const txType = deletedTxData.type;
+                const fromAccountName = deletedTxData.account;
+                const toAccountName = (txType === 'transfer') ? deletedTxData.payee : null; // Payee holds 'To' account for transfers
 
-                if (!accountName) {
-                    console.warn(`Transaction ID ${transactionId} has no account name. Skipping balance adjustment.`);
-                    adjustRTAIfNeeded();
-                    return;
+                try {
+                    if (txType === 'transfer') {
+                        // --- Reverse Transfer ---
+                        console.log(`Reversing transfer ${transactionId}: ${amount} from ${fromAccountName} to ${toAccountName}`);
+                        // Add amount back to 'From' account
+                        if (fromAccountName) {
+                            const fromAccData = await getAccountData(accStore, fromAccountName);
+                            if (fromAccData) {
+                                fromAccData.balance += amount;
+                                await putAccountData(accStore, fromAccData);
+                                console.log(` -> Added ${amount} back to ${fromAccountName}`);
+                            } else console.warn(`'From' account ${fromAccountName} not found for reversal.`);
+                        }
+                        // Subtract amount from 'To' account
+                        if (toAccountName) {
+                            const toAccData = await getAccountData(accStore, toAccountName);
+                            if (toAccData) {
+                                toAccData.balance -= amount;
+                                await putAccountData(accStore, toAccData);
+                                console.log(` -> Subtracted ${amount} from ${toAccountName}`);
+                            } else console.warn(`'To' account ${toAccountName} not found for reversal.`);
+                        }
+                        // No RTA adjustment
+
+                    } else {
+                        // --- Reverse Expense/Income/Refund ---
+                        console.log(`Reversing ${txType} ${transactionId}: ${amount} for account ${fromAccountName}`);
+                        // Adjust 'From' account balance
+                        if (fromAccountName) {
+                            const accountData = await getAccountData(accStore, fromAccountName);
+                            if (accountData) {
+                                // REVERSE the original effect
+                                if (txType === 'income' || txType === 'refund') {
+                                    accountData.balance -= amount;
+                                } else if (txType === 'expense') {
+                                    accountData.balance += amount;
+                                }
+                                await putAccountData(accStore, accountData);
+                                console.log(` -> Adjusted balance for ${fromAccountName}`);
+                            } else console.warn(`Account ${fromAccountName} not found for reversal.`);
+                        }
+
+                        // Adjust RTA if it was Income
+                        if (txType === 'income') {
+                            const metadata = await getMetadata(metaStore);
+                            metadata.ready_to_assign -= amount; // Subtract the income amount
+                            await putMetadata(metaStore, metadata);
+                        }
+                    }
+                    // Transaction completes below if no errors here
+
+                } catch (adjustmentError) {
+                    console.error("Error during balance/RTA adjustment:", adjustmentError);
+                    transaction.abort(); // Abort on adjustment failure
+                    reject(`Failed during balance/RTA adjustment: ${adjustmentError.message}`);
                 }
-
-                const accGetReq = accStore.get(accountName);
-                accGetReq.onerror = (event) => {
-                    console.error(`Error fetching account '${accountName}' for balance adjustment:`, event.target.error);
-                    transaction.abort();
-                    reject(`Failed to get account for balance adjustment: ${event.target.error}`);
-                };
-                accGetReq.onsuccess = (event) => {
-                    const accountData = event.target.result;
-                    if (!accountData) {
-                        console.warn(`Account '${accountName}' not found during deletion adjustment. Balance may be incorrect.`);
-                        adjustRTAIfNeeded();
-                        return;
-                    }
-
-                    // REVERSE the transaction's effect
-                    if (txType === 'income' || txType === 'refund') {
-                        accountData.balance -= amount;
-                    } else if (txType === 'expense') {
-                        accountData.balance += amount;
-                    }
-
-                    const accPutReq = accStore.put(accountData);
-                    accPutReq.onerror = (event) => {
-                        console.error(`Error saving updated balance for account '${accountName}':`, event.target.error);
-                        transaction.abort();
-                        reject(`Failed to save adjusted account balance: ${event.target.error}`);
-                    };
-                    accPutReq.onsuccess = () => {
-                        console.log(`Account '${accountName}' balance adjusted successfully.`);
-                        // 4. Adjust RTA if it was an Income transaction
-                        adjustRTAIfNeeded();
-                    };
-                };
-            };
-        };
-
-        // Helper function to adjust RTA (remains the same)
-        function adjustRTAIfNeeded() {
-            if (deletedTxData.type === 'income') {
-                const amount = parseFloat(deletedTxData.amount || 0);
-                const metaGetReq = metaStore.get('appData');
-                metaGetReq.onerror = (event) => {
-                    console.error("Error fetching metadata for RTA adjustment:", event.target.error);
-                    transaction.abort();
-                    reject(`Failed to get metadata for RTA adjustment: ${event.target.error}`);
-                };
-                metaGetReq.onsuccess = (event) => {
-                    const metadata = event.target.result || { key: 'appData', ready_to_assign: 0.0 };
-                    metadata.ready_to_assign -= amount;
-
-                    const metaPutReq = metaStore.put(metadata);
-                    metaPutReq.onerror = (event) => {
-                        console.error("Error saving adjusted RTA metadata:", event.target.error);
-                        transaction.abort();
-                        reject(`Failed to save adjusted RTA: ${event.target.error}`);
-                    };
-                    metaPutReq.onsuccess = () => {
-                        console.log("RTA adjusted successfully.");
-                    };
-                };
-            } else {
-                // Not income, no RTA adjustment needed
-            }
-        }
+            }; // end deleteReq.onsuccess
+        }; // end getReq.onsuccess
 
         transaction.oncomplete = async () => {
-            console.log("Standalone delete transaction complete. Reloading data...");
+            console.log("Delete transaction complete. Reloading data...");
             try {
-                await loadDataFromDB();
+                await loadDataFromDB(); // Reload UI
                 resolve();
             } catch (loadError) {
-                console.error("Data reload failed after deletion:", loadError);
                 reject("Transaction deleted, but failed to refresh data.");
             }
         };
-
         transaction.onerror = (event) => {
-            console.error("Standalone delete transaction failed:", event.target.error);
-            reject(`Transaction failed during standalone delete: ${event.target.error}`);
+            console.error("Delete transaction failed:", event.target.error);
+            reject(`Transaction failed during delete: ${event.target.error}`);
         };
     });
 }
@@ -3021,42 +3095,78 @@ function saveCategoryAndGroup(categoryData) {
 }
 
 /** Handles the submission of the new transaction form. */
+/** Handles the submission of the new transaction form. */
 async function handleAddTransaction(event) {
     event.preventDefault();
-    const statusDiv = addTxStatusDiv; // Use a local variable for clarity
-    if (!statusDiv) return;
-    updateStatusMessage(statusDiv, "Adding...", "info");
-    statusDiv.className = 'status-info';
 
-    // Basic validation
-    if (!txDateInput.value || !txAccountSelect.value || !txCategorySelect.value || !txAmountInput.value) {
-        updateStatusMessage(statusDiv, "Error: Please fill all required fields.", "error");
-        return;
+    const statusDiv = addTxStatusDiv;
+    if (!statusDiv) return;
+    updateStatusMessage(statusDiv, "Processing...", "info"); // Changed initial message slightly
+
+    const txType = txTypeSelect.value;
+    const isTransfer = txType === 'transfer';
+    
+    // --- Validation ---
+    let validationPassed = true;
+    let validationError = "";
+
+    // Common Validations
+    if (!txDateInput.value) {
+        validationPassed = false; validationError = "Please select a date.";
+    } else if (!txAccountSelect.value) {
+        validationPassed = false; validationError = "Please select the source account.";
     }
     const amount = parseFloat(txAmountInput.value);
-     if (isNaN(amount) || amount <= 0) {
-        updateStatusMessage(statusDiv, "Error: Invalid amount.", "error");
+    if (validationPassed && (isNaN(amount) || amount <= 0)) {
+        validationPassed = false; validationError = "Invalid amount. Amount must be positive.";
+    }
+
+    // Type-Specific Validations
+    let payeeOrToAccountValue = '';
+    if (validationPassed) {
+        if (isTransfer) {
+            payeeOrToAccountValue = txTransferToAccountSelect.value;
+            if (!payeeOrToAccountValue) {
+                validationPassed = false; validationError = "Please select a destination account for the transfer.";
+            } else if (payeeOrToAccountValue === txAccountSelect.value) {
+                validationPassed = false; validationError = "Cannot transfer to the same account.";
+            }
+        } else { // Expense, Income, Refund
+            payeeOrToAccountValue = txPayeeInput.value.trim();
+            if (!txCategorySelect.value) { // Category is required for non-transfers
+                validationPassed = false; validationError = "Please select a category.";
+            }
+            // Payee is optional, default will be assigned later if empty
+        }
+    }
+
+    if (!validationPassed) {
+        console.error("Validation failed:", validationError); // LOG 3: Validation failure
+        updateStatusMessage(statusDiv, `Error: ${validationError}`, "error");
         return;
     }
 
+    // --- Assemble Transaction Object ---
     const newTx = {
-        type: txTypeSelect.value,
+        type: txType,
         date: txDateInput.value,
-        account: txAccountSelect.value,
-        payee: txPayeeInput.value.trim() || `(${txTypeSelect.value})`,
-        category: txCategorySelect.value,
+        account: txAccountSelect.value, // "From" account
+        payee: isTransfer ? payeeOrToAccountValue : (payeeOrToAccountValue || `(${txType})`), // Use selected "To" account as Payee for transfers, or default for others
+        category: isTransfer ? null : txCategorySelect.value, // No category for transfers
         amount: amount,
         memo: txMemoInput.value.trim(),
     };
 
+    // --- Attempt to Save ---
     try {
         await saveTransactionStandalone(newTx);
-
+        // Status update and form reset are now handled inside saveTransactionStandalone on success
     } catch (error) {
-        console.error("Failed to add transaction:", error);
-        updateStatusMessage(statusDiv, `Error: ${error}`, "error");
+        console.error("Failed to add transaction:", error); 
+        updateStatusMessage(statusDiv, `Error saving transaction: ${error}`, "error");
     }
 }
+
 /** Generates a Version 4 UUID string. */
 function generateUUID() { /* ... keep existing UUID function ... */
     if (self.crypto && self.crypto.randomUUID) {
@@ -3069,6 +3179,79 @@ function generateUUID() { /* ... keep existing UUID function ... */
         });
     }
 }
+
+/**
+ * Updates the Add Transaction form UI based on the selected transaction type.
+ * Handles showing/hiding Payee/To Account and Category fields.
+ * @param {string} selectedType The value from the tx-type select ('income', 'expense', 'refund', 'transfer').
+ */
+function updateAddFormForTxType(selectedType) {
+    if (!payeeGroup || !payeeLabel || !txPayeeInput || !txTransferToAccountSelect || !categoryGroup || !txCategorySelect) {
+        console.error("Add form dynamic elements not found.");
+        return;
+    }
+
+    const isTransfer = selectedType === 'transfer';
+
+    // --- Payee / To Account Fields ---
+    payeeLabel.textContent = isTransfer ? "To Account:" : "Payee:";
+    txPayeeInput.classList.toggle('hidden', isTransfer); // Hide Payee input if transfer
+    txTransferToAccountSelect.classList.toggle('hidden', !isTransfer); // Show 'To Account' select if transfer
+
+    // Set required attribute dynamically
+    txPayeeInput.required = !isTransfer;
+    txTransferToAccountSelect.required = isTransfer;
+
+    // --- Category Field ---
+    categoryGroup.classList.toggle('hidden', isTransfer); // Hide Category group if transfer
+    txCategorySelect.required = !isTransfer; // Category is NOT required for transfers
+
+    // --- Populate/Update Dropdowns ---
+    if (isTransfer) {
+        populateTransferToAccountDropdown(); // Populate the 'To' account dropdown
+        txCategorySelect.value = ''; // Clear category selection for transfer
+    } else {
+        // For non-transfers, ensure the category dropdown is populated correctly for the type
+        // (This was already handled by a previous function, but call it defensively)
+        updateCategoryDropdownForTxType(selectedType);
+    }
+
+    console.log(`Add form updated for type: ${selectedType}`);
+}
+
+/**
+ * Populates the "To Account" dropdown for transfers, excluding the selected "From Account".
+ */
+function populateTransferToAccountDropdown() {
+    if (!txAccountSelect || !txTransferToAccountSelect || !localBudgetData || !localBudgetData.accounts) {
+        console.warn("Cannot populate 'To Account' dropdown: Missing elements or data.");
+        txTransferToAccountSelect.innerHTML = '<option value="">-- No Accounts Available --</option>';
+        return;
+    }
+
+    const fromAccountName = txAccountSelect.value;
+    const allAccountNames = Object.keys(localBudgetData.accounts).sort();
+    const availableToAccounts = allAccountNames.filter(accName => accName !== fromAccountName);
+
+    // Remember current selection if possible
+    const currentToSelection = txTransferToAccountSelect.value;
+
+    txTransferToAccountSelect.innerHTML = ''; // Clear existing options
+
+    // Add default prompt
+    txTransferToAccountSelect.add(new Option('-- Select Destination Account --', ''));
+
+    // Add filtered accounts
+    availableToAccounts.forEach(accName => {
+        txTransferToAccountSelect.add(new Option(accName, accName));
+    });
+
+     // Try to restore previous selection
+     if (availableToAccounts.includes(currentToSelection)) {
+        txTransferToAccountSelect.value = currentToSelection;
+    }
+}
+
 
 // --- Filter Functions --- 
 /** Filters the displayed transaction rows based on current filter inputs. */
