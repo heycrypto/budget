@@ -1934,7 +1934,7 @@ function parseCurrency(value) {
     let number = parseFloat(numStr);
     if (isNaN(number)) {
         console.warn(`Could not parse currency value: "${value}" -> "${numStr}"`);
-        return 0;
+        return NaN;
     }
     return isNegative ? -number : number;
 }
@@ -3368,7 +3368,7 @@ async function handleAddAccount(event) {
 
     const accountName = newAccountNameInput.value.trim();
     const accountType = newAccountTypeSelect.value;
-    const startingBalance = parseFloat(newAccountBalanceInput.value);
+    const startingBalance = parseCurrency(newAccountBalanceInput.value);
 
     updateStatusMessage(addAccountStatusDiv, "Adding account...", "info");
 
@@ -3378,7 +3378,7 @@ async function handleAddAccount(event) {
         return;
     }
     if (isNaN(startingBalance)) {
-        updateStatusMessage(addAccountStatusDiv, "Error: Invalid starting balance.", "error");
+        updateStatusMessage(addAccountStatusDiv, "Error: Invalid starting balance. Please use format like 1234,56 or (500,00).", "error");
         return;
     }
 
