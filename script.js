@@ -2113,11 +2113,42 @@ function calculatePeriodSummary(periodPrefix, transactions) {
     });
     return { income: totalIncome, spending: totalExpense - totalRefund };
 }
-/** Formats a number as currency (simple version). */
+/**
+ * Formats a number to use '.' for thousands separation and ',' for the decimal point,
+ * always showing 2 decimal places and using parentheses for negative numbers.
+ * Currency symbol is OMITTED.
+ * @param {number} amount The number to format.
+ * @returns {string} The formatted number string (e.g., "1.234,56" or "(50,00)").
+ */
 function formatCurrency(amount) {
-    if (typeof amount !== 'number' || isNaN(amount)) return "$?.??";
-    const options = { style: 'currency', currency: 'EUR' }; // Adjust currency as needed
-    return amount < 0 ? `(${Math.abs(amount).toLocaleString(undefined, options)})` : amount.toLocaleString(undefined, options);
+    // Handle non-numeric or NaN input
+    if (typeof amount !== 'number' || isNaN(amount)) {
+        return "?.??"; // Return a placeholder for invalid input
+    }
+
+    const isNegative = amount < 0;
+    const absoluteAmount = Math.abs(amount);
+
+    // 1. Format the number to exactly 2 decimal places using '.' as the initial decimal sep.
+    const fixedString = absoluteAmount.toFixed(2);
+
+    // 2. Split the string into integer and decimal parts
+    const parts = fixedString.split('.');
+    let integerPart = parts[0];
+    const decimalPart = parts[1];
+
+    // 3. Add the thousands separator ('.') to the integer part
+    // Use a regular expression for efficient insertion of dots
+    // \B matches a non-word boundary (ensures we don't put a dot at the start)
+    // (?=(\d{3})+(?!\d)) is a positive lookahead that finds positions followed by
+    // one or more groups of 3 digits, but not followed by another digit (end of string or start of decimal).
+    integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+    // 4. Combine the integer and decimal parts with the desired decimal separator (',')
+    const formattedNumber = integerPart + "," + decimalPart;
+
+    // 5. Add parentheses for negative numbers, otherwise return the formatted number
+    return isNegative ? `(${formattedNumber})` : formattedNumber;
 }
 
 /**
