@@ -762,6 +762,7 @@ function handleBudgetCellClick(event) {
     input.dataset.originalValueStr = originalValueStr; // Store original formatted string
     input.dataset.categoryName = categoryName; // Store category for easy access
     input.dataset.period = currentPeriod;       // Store period
+    input.inputMode = 'decimal'; 
 
     // --- Clear the cell and add the input ---
     targetCell.innerHTML = '';
@@ -1913,18 +1914,42 @@ function renderYearlyFooter(tfoot, monthlyResults, yearlyResult) {
 }
 
 // --- Helper Function: Parse Formatted Currency ---
-/** Parses a formatted currency string (like $1,234.56 or ($50.00)) into a number. */
+/**
+ * Parses a formatted number string (potentially with '.' thousands and ',' decimal)
+ * back into a number. Handles parentheses for negatives.
+ * @param {string} value The formatted string (e.g., "1.234,56" or "(50,00)").
+ * @returns {number} The parsed number, or 0 if parsing fails.
+ */
 function parseCurrency(value) {
-    if (typeof value !== 'string') return 0;
-    let numStr = value.replace(/[$,]/g, ''); // Remove $ and commas
-    let number = 0;
-    if (numStr.startsWith('(') && numStr.endsWith(')')) {
-        numStr = '-' + numStr.substring(1, numStr.length - 1); // Handle negative parens
-    }
-    number = parseFloat(numStr);
-    return isNaN(number) ? 0 : number;
-}
+    if (typeof value !== 'string' || !value.trim()) return 0;
 
+    let numStr = value.trim();
+    let isNegative = false;
+
+    // Check for negative parentheses
+    if (numStr.startsWith('(') && numStr.endsWith(')')) {
+        isNegative = true;
+        numStr = numStr.substring(1, numStr.length - 1); // Remove parentheses
+    }
+
+    // Remove thousands separators (dots in this case)
+    numStr = numStr.replace(/\./g, '');
+
+    // Replace the decimal separator (comma) with a dot for standard parsing
+    numStr = numStr.replace(/,/g, '.');
+
+    // Parse the cleaned string
+    let number = parseFloat(numStr);
+
+    // Check if parsing was successful
+    if (isNaN(number)) {
+        console.warn(`Could not parse currency value: "${value}" -> "${numStr}"`);
+        return 0;
+    }
+
+    // Apply the negative sign if necessary
+    return isNegative ? -number : number;
+}
 
 // --- Chart Data Calculation Function ---
 
