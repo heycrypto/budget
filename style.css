@@ -818,4 +818,79 @@ td.editable-budget input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
+/* Add towards the end of style.css */
+
+#yearly-summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+#yearly-summary-table th,
+#yearly-summary-table td {
+    border: 1px solid #ddd;
+    padding: 6px 8px; /* Adjust padding as needed */
+    text-align: right; /* Default to right for numbers */
+    vertical-align: middle;
+    white-space: nowrap; /* Crucial for horizontal scroll */
+}
+
+#yearly-summary-table thead th {
+    background-color: #e9ecef;
+    position: -webkit-sticky; /* Make headers sticky within scroll wrapper */
+    position: sticky;
+    top: 0;
+    z-index: 10; /* Keep header above body */
+}
+
+/* Left-align the Category column header and body cells */
+#yearly-summary-table th:first-child,
+#yearly-summary-table td:first-child {
+    text-align: left;
+    white-space: normal; /* Allow category names to wrap */
+     /* Make category column sticky if desired (can be tricky with thead sticky) */
+     /* position: -webkit-sticky;
+     position: sticky;
+     left: 0;
+     background-color: #f8f9fa; /* Match body background */
+     /* z-index: 11; /* Above header sticky background */
+}
+
+
+#yearly-summary-table tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+/* Style for the Income/Expense group separator (optional) */
+#yearly-summary-tbody tr.expense-group-separator td {
+    border-top: 2px solid #aaa;
+    font-weight: bold;
+    background-color: #f0f0f0;
+    padding: 8px;
+    text-align: center;
+}
+
+/* Style for the Monthly Result row in the footer */
+#yearly-summary-table tfoot tr.monthly-result-row th,
+#yearly-summary-table tfoot tr.monthly-result-row td {
+    font-weight: bold;
+    background-color: #e9ecef;
+    border-top: 2px solid #ccc;
+}
+
+#yearly-summary-table tfoot tr.monthly-result-row th { /* "Monthly Result" label */
+    text-align: left;
+}
+
+#yearly-summary-no-data {
+     color: #6c757d;
+}
+
+#yearly-summary-tbody tr.yearly-total-row th, /* Target TH in total row */
+#yearly-summary-tbody tr.yearly-total-row td {
+    font-weight: bold;
+    background-color: #e9ecef; /* Match header/footer background */
+    border-top: 1px solid #ccc;    /* Add a line above */
+    border-bottom: 1px solid #ccc; /* Add a line below */
+}
 }

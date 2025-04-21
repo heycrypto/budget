@@ -95,6 +95,15 @@ const budgetNextMonthBtn = document.getElementById('budget-next-month');
 const chartPrevMonthBtn = document.getElementById('chart-prev-month');
 const chartNextMonthBtn = document.getElementById('chart-next-month');
 
+// --- Yearly Summary Elements ---
+const yearlySummarySection = document.getElementById('yearly-summary-section');
+const yearlySummaryYearSpan = document.getElementById('yearly-summary-year');
+const yearlySummaryTbody = document.getElementById('yearly-summary-tbody');
+const yearlySummaryTfoot = document.getElementById('yearly-summary-tfoot');
+const yearlySummaryNoDataMsg = document.getElementById('yearly-summary-no-data');
+const yearlyPrevYearBtn = document.getElementById('yearly-prev-year');
+const yearlyNextYearBtn = document.getElementById('yearly-next-year');
+
 // --- Define Constants ---
 const DB_NAME = 'budgetAppDB';
 const DB_VERSION = 2; // 
@@ -117,6 +126,9 @@ let currentChartMonth = null;  // Stores "YYYY-MM" for the chart view
 let earliestDataMonth = null; // Stores "YYYY-MM" of the first transaction
 let latestDataMonth = null;   // Stores "YYYY-MM" of the last transaction (or current month)
 let activeBudgetInput = null;
+let currentYearlySummaryYear = null; // Stores integer year (e.g., 2024)
+let earliestDataYear = null; // Stores earliest year from data
+let latestDataYear = null; // Stores latest year from data
 
 /**
  * Initializes the IndexedDB database.
@@ -212,6 +224,9 @@ async function initializeApp() {
     setupStandaloneEventListeners(); // Keep standalone specific listeners here
     setupNavButtonListeners();
     setupBudgetEditingListener();
+    setupNavButtonListeners(); // Existing budget/chart buttons
+    setupYearlyNavButtonListeners(); // Add this call
+    setupBudgetEditingListener();
 
     await loadDataFromDB();
 
@@ -305,6 +320,17 @@ function handleChartNav(event) {
     }
 }
 
+// --- Event Handlers for Year Navigation ---
+function handleYearlySummaryNav(event) {
+    const direction = event.target.id.includes('prev') ? 'prev' : 'next';
+    const current = currentYearlySummaryYear;
+    if (!current) return; // Cannot navigate if no year is set
+
+    const targetYear = (direction === 'prev') ? current - 1 : current + 1;
+
+    updateYearlySummaryView(targetYear);
+}
+
 // --- Event Listener Setup Functions --- (Grouped for clarity)
 
 function setupMenuListeners() {
@@ -354,6 +380,11 @@ function setupAddFormListeners() {
 
 function setupSyncButtonListeners() {
     if (exportStandaloneButton) exportStandaloneButton.addEventListener('click', handleExportStandaloneData); 
+}
+
+function setupYearlyNavButtonListeners() {
+    if (yearlyPrevYearBtn) yearlyPrevYearBtn.addEventListener('click', handleYearlySummaryNav);
+    if (yearlyNextYearBtn) yearlyNextYearBtn.addEventListener('click', handleYearlySummaryNav);
 }
 
 // --- Menu Toggle Functionality ---
@@ -919,12 +950,16 @@ async function processBudgetData(data) {
     currentChartMonth = null;
     earliestDataMonth = null;
     latestDataMonth = null;
+    earliestDataYear = null; 
+    latestDataYear = null;   
 
     if (!data) {
         console.warn("processBudgetData called with null data.");
         // Display default "no data" state
          clearDataDisplay();
          const defaultPeriod = getCurrentRealMonth();
+         const defaultYear = getCurrentRealYear();
+         updateYearlySummaryView(defaultYear); 
          updateBudgetView(defaultPeriod);
          updateChartView(defaultPeriod);
          displayRTA(0);
@@ -957,7 +992,10 @@ async function processBudgetData(data) {
         // --- Determine date range ---
         earliestDataMonth = findEarliestMonth(allTransactionsForDisplay);
         latestDataMonth = findLatestMonth(allTransactionsForDisplay);
+        earliestDataYear = findEarliestYear(allTransactionsForDisplay); 
+        latestDataYear = findLatestYear(allTransactionsForDisplay);     
         const initialDisplayMonth = latestDataMonth || getCurrentRealMonth();
+        const initialDisplayYear = latestDataYear || getCurrentRealYear();
 
         // --- Populate Static UI elements ---
         populateAccountFilter(data.accounts, [filterAccountSelect, txAccountSelect]);
@@ -997,11 +1035,14 @@ async function processBudgetData(data) {
         // --- Update Views for Initial Month ---
         updateBudgetView(initialDisplayMonth);
         updateChartView(initialDisplayMonth);
+        updateYearlySummaryView(initialDisplayYear);
 
     } catch (uiError) {
         console.error("Error updating UI:", uiError);
         updateStatus(`Error displaying data: ${uiError.message}`, "error");
         clearDataDisplay();
+        const defaultYear = getCurrentRealYear();
+        updateYearlySummaryView(defaultYear);     
     }
 }
 // --- Budget Calculation Helper Functions ---
@@ -1065,6 +1106,11 @@ function getNextPeriodJS(periodStr) {
         console.error("Error getting next period:", e);
         return null;
     }
+}
+
+/** Gets the current real-world year */
+function getCurrentRealYear() {
+    return new Date().getFullYear();
 }
 
 /**
@@ -1176,6 +1222,40 @@ function findEarliestMonth(transactions) {
         }
     });
     return earliest;
+}
+
+/** Finds the earliest year present in transaction data. */
+function findEarliestYear(transactions) {
+    let earliest = null;
+    if (!transactions || transactions.length === 0) return null;
+    transactions.forEach(tx => {
+        if (tx.date && typeof tx.date === 'string' && tx.date.length >= 4) {
+            const year = parseInt(tx.date.substring(0, 4), 10);
+            if (!isNaN(year)) {
+                if (earliest === null || year < earliest) {
+                    earliest = year;
+                }
+            }
+        }
+    });
+    return earliest;
+}
+
+/** Finds the latest year present in transaction data. */
+function findLatestYear(transactions) {
+    let latest = null;
+    if (!transactions || transactions.length === 0) return null;
+    transactions.forEach(tx => {
+        if (tx.date && typeof tx.date === 'string' && tx.date.length >= 4) {
+            const year = parseInt(tx.date.substring(0, 4), 10);
+            if (!isNaN(year)) {
+                if (latest === null || year > latest) {
+                    latest = year;
+                }
+            }
+        }
+    });
+    return latest;
 }
 
 /**
@@ -1465,6 +1545,371 @@ function updateBudgetTableTotals() {
     // Re-calculate and display RTA after updating totals - Needs DB read for accuracy.
     // We'll trigger this after the save operation instead.
     // updateRTAFromMetadata(); // Placeholder for a function to read and display RTA
+}
+
+/**
+ * Updates the Yearly Summary View section for a specific year.
+ * @param {number} year The target year (e.g., 2024).
+ */
+function updateYearlySummaryView(year) {
+    console.log(`Updating Yearly Summary View for: ${year}`);
+    currentYearlySummaryYear = year; // Update state
+
+    if (!localBudgetData) {
+        console.warn("No data available to update yearly summary view.");
+        renderYearlySummaryTable(year, null); // Render empty state
+        return;
+    }
+
+    // Use standalone data
+    const transactionsToUse = localBudgetData.transactions || [];
+    const categoriesToUse = localBudgetData.categories || [];
+    const groupsToUse = localBudgetData.category_groups || {};
+
+    // Calculate data for the specific year
+    const summaryData = calculateYearlySummaryData(
+        year,
+        transactionsToUse,
+        categoriesToUse,
+        groupsToUse
+    );
+
+    // Render the table
+    renderYearlySummaryTable(year, summaryData);
+
+    // Update navigation button states
+    updateYearlyNavButtonStates(year);
+}
+
+/**
+ * Updates the enabled/disabled state of Previous/Next year buttons.
+ * @param {number} displayedYear The currently displayed year.
+ */
+function updateYearlyNavButtonStates(displayedYear) {
+    if (!yearlyPrevYearBtn || !yearlyNextYearBtn || !displayedYear) return;
+
+    const currentRealYear = getCurrentRealYear();
+
+    // Disable "Next" if displaying the current real year or later
+    yearlyNextYearBtn.disabled = displayedYear >= currentRealYear;
+
+    // Disable "Previous" if displaying the earliest year with data
+    yearlyPrevYearBtn.disabled = !!earliestDataYear && displayedYear <= earliestDataYear;
+}
+
+/**
+ * Calculates the data needed for the yearly summary report table.
+ * @param {number} year The target year (e.g., 2024).
+ * @param {Array} transactions List of all transactions.
+ * @param {Array} categories List of all category names.
+ * @param {object} groupsData Category groups mapping { "Category": "Group Name" }.
+ * @returns {{incomeRows: Array<object>, expenseRows: Array<object>, monthlyResults: Array<number>, yearlyResult: number}|null} Structured data or null if no relevant data.
+ */
+function calculateYearlySummaryData(year, transactions = [], categories = [], groupsData = {}) {
+    const yearPrefix = year.toString();
+    const monthlyData = {}; // { category: { '01': amount, '02': amount, ..., 'total': amount } }
+    const monthlyTotals = { income: Array(12).fill(0.0), expense: Array(12).fill(0.0) };
+
+    // 1. Filter transactions for the year and aggregate by category/month
+    transactions.forEach(tx => {
+        if (!tx.date || !tx.date.startsWith(yearPrefix) || tx.type === 'transfer') {
+            return; // Skip if not in year or is a transfer
+        }
+
+        const category = tx.category || (tx.type === 'income' ? UNKNOWN_INCOME_SOURCE : UNCATEGORIZED);
+        const group = groupsData[category];
+
+        // Skip categories we don't want in the summary (Savings, Archived)
+        if (group === SAVINGS_GROUP_NAME || group === ARCHIVED_GROUP_NAME) {
+            return;
+        }
+
+        const monthIndex = parseInt(tx.date.substring(5, 7), 10) - 1; // 0-11
+        if (monthIndex < 0 || monthIndex > 11) return; // Invalid month
+
+        try {
+            const amount = parseFloat(tx.amount || 0);
+            if (isNaN(amount)) return;
+
+            if (!monthlyData[category]) {
+                // Initialize category with 12 months + total
+                monthlyData[category] = { monthly: Array(12).fill(0.0), total: 0.0 };
+            }
+
+            let effectiveAmount = 0;
+            if (tx.type === 'income') {
+                effectiveAmount = amount;
+                monthlyTotals.income[monthIndex] += amount;
+            } else if (tx.type === 'expense') {
+                effectiveAmount = amount; // Store as positive expense
+                monthlyTotals.expense[monthIndex] += amount;
+            } else if (tx.type === 'refund') {
+                effectiveAmount = -amount; // Store refund as negative expense
+                monthlyTotals.expense[monthIndex] -= amount; // Reduce expense total
+            }
+
+            monthlyData[category].monthly[monthIndex] += effectiveAmount;
+            monthlyData[category].total += effectiveAmount;
+
+        } catch (e) {
+            console.warn(`Error processing transaction amount during yearly summary calc: ${e}`, tx);
+        }
+    });
+
+    // 2. Prepare rows, separating Income and Expenses
+    const incomeRows = [];
+    const expenseRows = [];
+
+    const relevantCategories = Object.keys(monthlyData).sort();
+
+    relevantCategories.forEach(cat => {
+        const group = groupsData[cat] || 'Unassigned';
+        const isIncome = group === INCOME_GROUP_NAME || cat === UNKNOWN_INCOME_SOURCE; // Check group or specific internal income category
+        const rowData = {
+            category: cat,
+            monthly: monthlyData[cat].monthly,
+            total: monthlyData[cat].total
+        };
+
+        // Skip rows with zero total and zero monthly values unless needed
+        if (rowData.total === 0 && rowData.monthly.every(m => m === 0)) {
+             // console.log(`Skipping zero-value category: ${cat}`); // Optional log
+             return;
+        }
+
+
+        if (isIncome) {
+            incomeRows.push(rowData);
+        } else {
+            expenseRows.push(rowData);
+        }
+    });
+
+    // 3. Calculate Monthly Results (Income - Expense)
+    const monthlyResults = [];
+    let yearlyIncomeTotal = 0;
+    let yearlyExpenseTotal = 0;
+    for (let i = 0; i < 12; i++) {
+        const income = monthlyTotals.income[i];
+        const expense = monthlyTotals.expense[i];
+        monthlyResults.push(income - expense);
+        yearlyIncomeTotal += income;
+        yearlyExpenseTotal += expense;
+    }
+    const yearlyResult = yearlyIncomeTotal - yearlyExpenseTotal;
+
+    // Return null if there's absolutely nothing to show
+    if (incomeRows.length === 0 && expenseRows.length === 0) {
+        return null;
+    }
+
+    return {
+        incomeRows,
+        expenseRows,
+        monthlyIncomeTotals: monthlyTotals.income, 
+        yearlyIncomeTotal,                       
+        monthlyExpenseTotals: monthlyTotals.expense, 
+        yearlyExpenseTotal,                      
+        monthlyResults,
+        yearlyResult
+    };
+}
+
+
+/**
+ * Helper to render a total row (Income or Expenses) in the yearly summary table tbody.
+ * @param {HTMLTableSectionElement} tbody The table body element.
+ * @param {string} label The text label for the row (e.g., "Total Income").
+ * @param {Array<number>} monthlyTotals Array of 12 monthly total amounts.
+ * @param {number} yearlyTotal The overall total for the year.
+ * @param {boolean} isIncomeTotal True if this is the income total row, false for expense total.
+ */
+function renderYearlyTotalRow(tbody, label, monthlyTotals, yearlyTotal, isIncomeTotal) {
+    const tr = tbody.insertRow();
+    tr.className = 'yearly-total-row'; // Class for potential styling
+
+    // Label Cell (using TH for semantic emphasis)
+    const cellLabel = document.createElement('th'); // Use TH for the row header
+    cellLabel.textContent = label;
+    cellLabel.style.textAlign = 'left';
+    cellLabel.style.fontWeight = 'bold';
+    tr.appendChild(cellLabel);
+
+    // Monthly Totals Cells
+    monthlyTotals.forEach(amount => {
+        const cell = tr.insertCell();
+        cell.textContent = formatCurrency(amount);
+        cell.style.fontWeight = 'bold';
+        let currencyClass = '';
+        if (isIncomeTotal) {
+            // Style income totals like income (green if positive)
+            currencyClass = getCurrencyClass(amount, true);
+        } else {
+            // Style expense totals like expenses (red if positive net expense, green if negative net expense/net refund)
+            currencyClass = amount > 0.005 ? 'negative-currency' : (amount < -0.005 ? 'positive-currency' : 'zero-currency');
+        }
+        cell.className = `currency ${currencyClass}`;
+    });
+
+    // Yearly Total Cell
+    const cellYearlyTotal = tr.insertCell();
+    cellYearlyTotal.textContent = formatCurrency(yearlyTotal);
+    cellYearlyTotal.style.fontWeight = 'bold';
+    let totalClass = '';
+     if (isIncomeTotal) {
+         totalClass = getCurrencyClass(yearlyTotal, true);
+     } else {
+         totalClass = yearlyTotal > 0.005 ? 'negative-currency' : (yearlyTotal < -0.005 ? 'positive-currency' : 'zero-currency');
+     }
+    cellYearlyTotal.className = `currency ${totalClass}`;
+
+}
+
+/**
+ * Renders the calculated yearly summary data into the HTML table.
+ * @param {number} year The year being displayed.
+ * @param {object|null} summaryData The structured data from calculateYearlySummaryData, or null.
+ */
+function renderYearlySummaryTable(year, summaryData) {
+    const theadMonthsRow = document.getElementById('yearly-summary-thead-months');
+
+    // Always clear previous content
+    if (yearlySummaryTbody) yearlySummaryTbody.innerHTML = '';
+    if (yearlySummaryTfoot) yearlySummaryTfoot.innerHTML = '';
+    if (yearlySummaryYearSpan) yearlySummaryYearSpan.textContent = year || '--';
+    if (yearlySummaryNoDataMsg) yearlySummaryNoDataMsg.classList.add('hidden');
+    if (theadMonthsRow) theadMonthsRow.innerHTML = ''; // Clear headers too
+
+    // Check if data exists and table elements are present
+    if (!summaryData || (!summaryData.incomeRows.length && !summaryData.expenseRows.length)) {
+         if (yearlySummaryNoDataMsg) yearlySummaryNoDataMsg.classList.remove('hidden');
+         if (yearlySummaryTbody) yearlySummaryTbody.innerHTML = `<tr><td colspan="14">No transaction data found for ${year}.</td></tr>`; // Update colspan
+        console.warn("No yearly summary data to render for year:", year);
+         // Still render headers for empty state
+         if (theadMonthsRow) renderYearlyHeaders(theadMonthsRow);
+        return;
+    }
+     if (!yearlySummaryTbody || !yearlySummaryTfoot || !theadMonthsRow) {
+         console.error("Yearly summary table elements (tbody, tfoot, thead row) not found.");
+         return;
+     }
+    // Hide no-data message if we have *any* data object
+    if (yearlySummaryNoDataMsg) yearlySummaryNoDataMsg.classList.add('hidden');
+
+    // 1. Render Headers
+    renderYearlyHeaders(theadMonthsRow);
+
+    // 2. Render Income Rows
+    summaryData.incomeRows.forEach(row => {
+        renderYearlyCategoryRow(yearlySummaryTbody, row, true); // isIncome = true
+    });
+    if (summaryData.incomeRows.length > 0) { // Only show if there was income data
+        renderYearlyTotalRow(
+            yearlySummaryTbody,
+            "Total Income",
+            summaryData.monthlyIncomeTotals,
+            summaryData.yearlyIncomeTotal,
+            true // isIncomeTotal = true
+        );
+    }
+
+    // 3. Render Separator (if both income and expenses exist)
+    if (summaryData.incomeRows.length > 0 && summaryData.expenseRows.length > 0) {
+        const sepRow = yearlySummaryTbody.insertRow();
+        sepRow.className = 'expense-group-separator'; // Apply CSS class
+        const cell = sepRow.insertCell();
+        cell.colSpan = 14; // Span all columns
+        cell.textContent = 'Expenses';
+    } else if (summaryData.expenseRows.length > 0) {
+         // Optional: Add header if ONLY expenses exist?
+        // const sepRow = yearlySummaryTbody.insertRow(); /* ... */ cell.textContent = 'Expenses';
+    }
+
+
+    // 4. Render Expense Rows
+    summaryData.expenseRows.forEach(row => {
+        renderYearlyCategoryRow(yearlySummaryTbody, row, false); // isIncome = false
+    });
+    if (summaryData.expenseRows.length > 0) { // Only show if there was expense data
+        renderYearlyTotalRow(
+            yearlySummaryTbody,
+            "Total Expenses",
+            summaryData.monthlyExpenseTotals,
+            summaryData.yearlyExpenseTotal,
+            false // isIncomeTotal = false
+        );
+    }
+
+    // 5. Render Footer (Monthly Result)
+    renderYearlyFooter(yearlySummaryTfoot, summaryData.monthlyResults, summaryData.yearlyResult);
+}
+
+/** Helper to render the month headers for the yearly summary table */
+function renderYearlyHeaders(theadRow) {
+     theadRow.innerHTML = ''; // Clear first
+     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+     let th = document.createElement('th'); th.textContent = 'Category'; theadRow.appendChild(th);
+     months.forEach(m => {
+         th = document.createElement('th'); th.textContent = m; theadRow.appendChild(th);
+     });
+     th = document.createElement('th'); th.textContent = 'Total'; theadRow.appendChild(th);
+}
+
+
+/** Helper to render a single category row in the yearly summary table */
+function renderYearlyCategoryRow(tbody, rowData, isIncome) {
+    const tr = tbody.insertRow();
+    const cellCat = tr.insertCell();
+    cellCat.textContent = rowData.category;
+    cellCat.style.textAlign = 'left'; // Ensure category name is left-aligned
+
+    // Monthly values
+    rowData.monthly.forEach(amount => {
+        const cell = tr.insertCell();
+        cell.textContent = formatCurrency(amount);
+        // Income uses positive style, Expense uses negative style for positive amounts
+        let currencyClass = '';
+         if (isIncome) {
+             currencyClass = getCurrencyClass(amount, true); // Allow positive green for income
+         } else {
+             // For expenses: positive amount -> red, negative amount (refund) -> green
+             currencyClass = amount > 0.005 ? 'negative-currency' : (amount < -0.005 ? 'positive-currency' : 'zero-currency');
+         }
+        cell.className = `currency ${currencyClass}`;
+    });
+
+    // Total value
+    const cellTotal = tr.insertCell();
+    cellTotal.textContent = formatCurrency(rowData.total);
+     let totalClass = '';
+     if (isIncome) {
+         totalClass = getCurrencyClass(rowData.total, true);
+     } else {
+         totalClass = rowData.total > 0.005 ? 'negative-currency' : (rowData.total < -0.005 ? 'positive-currency' : 'zero-currency');
+     }
+    cellTotal.className = `currency ${totalClass}`;
+    cellTotal.style.fontWeight = 'bold'; // Make total bold
+}
+
+/** Helper to render the footer row (Monthly Result) */
+function renderYearlyFooter(tfoot, monthlyResults, yearlyResult) {
+    tfoot.innerHTML = ''; // Clear previous footer
+    const tr = tfoot.insertRow();
+    tr.className = 'monthly-result-row'; // Apply CSS class
+
+    const cellLabel = tr.insertCell(); // Use TH for semantic meaning?
+    cellLabel.outerHTML = `<th>Monthly Result</th>`; // Change to TH
+
+    monthlyResults.forEach(result => {
+        const cell = tr.insertCell();
+        cell.textContent = formatCurrency(result);
+        cell.className = `currency ${getCurrencyClass(result, true)}`; // Allow positive results to be green
+    });
+
+    const cellTotal = tr.insertCell();
+    cellTotal.textContent = formatCurrency(yearlyResult);
+    cellTotal.className = `currency ${getCurrencyClass(yearlyResult, true)}`;
+    cellTotal.style.fontWeight = 'bold'; // Make total bold
 }
 
 // --- Helper Function: Parse Formatted Currency ---

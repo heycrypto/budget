@@ -26,6 +26,7 @@
             <li><a href="#dashboard-summary" class="nav-link" data-section="dashboard-summary">Dashboard</a></li>
             <li><a href="#budget-view" class="nav-link" data-section="budget-view">Budget </a></li>
             <li><a href="#charts-section" class="nav-link" data-section="charts-section">Charts</a></li>
+            <li><a href="#yearly-summary-section" class="nav-link" data-section="yearly-summary-section">Yearly Summary</a></li> 
             <li><a href="#add-expense-form" class="nav-link" data-section="add-expense-form">Add Entry</a></li>
             <li><a href="#transactions-list" class="nav-link" data-section="transactions-list">Transactions</a></li>
             <li><a href="#manage-accounts-section" class="nav-link" data-section="manage-accounts-section">Manage Accounts</a></li>
@@ -153,6 +154,35 @@
                 <canvas id="spendingPieChart"></canvas> <!-- Canvas element for Chart.js -->
             </div>
             <p id="chart-no-data" class="hidden" style="text-align: center; margin-top: 15px; font-style: italic;">No positive spending data available for this period to generate chart.</p>
+        </section>
+        <!-- === YEARLY SUMMARY SECTION === -->
+        <section id="yearly-summary-section" class="main-section hidden">
+            <h2 class="view-header-nav"> <!-- Reuse header style -->
+                <button id="yearly-prev-year" class="button button-small nav-button" aria-label="Previous year summary">< Prev Year</button>
+                <span>Yearly Summary (<span id="yearly-summary-year">--</span>)</span>
+                <button id="yearly-next-year" class="button button-small nav-button" aria-label="Next year summary">Next Year ></button>
+        </h2>
+
+            <div id="yearly-summary-content" class="card" style="margin-top: 15px;"> <!-- Wrap content in a card -->
+                <div class="table-responsive-wrapper">
+                    <table id="yearly-summary-table">
+                        <thead>
+                            <tr id="yearly-summary-thead-months">
+                                <th>Category</th>
+                                <!-- Month headers (Jan-Dec) + Total populated by JS -->
+                            </tr>
+                        </thead>
+                        <tbody id="yearly-summary-tbody">
+                            <!-- Category rows populated by JS -->
+                            <tr><td colspan="14">Loading summary data...</td></tr> <!-- Colspan 1 (Category) + 12 (Months) + 1 (Total) = 14 -->
+                        </tbody>
+                        <tfoot id="yearly-summary-tfoot">
+                            <!-- Monthly Result row populated by JS -->
+                        </tfoot>
+                    </table>
+                </div>
+                <p id="yearly-summary-no-data" class="hidden" style="text-align: center; margin-top: 15px; font-style: italic;">No transaction data available for this year.</p>
+            </div>
         </section>
         <!-- === BUDGET VIEW SECTION === -->
         <section id="budget-view" class="main-section hidden">
