@@ -756,13 +756,13 @@ function handleBudgetCellClick(event) {
 
     // --- Create and configure the input field ---
     const input = document.createElement('input');
-    input.type = 'number';
-    input.step = '0.01';
-    input.value = originalValue.toFixed(2); // Set value with 2 decimal places
+    input.type = 'text';
+    input.value = formatCurrency(originalValue);
     input.dataset.originalValueStr = originalValueStr; // Store original formatted string
     input.dataset.categoryName = categoryName; // Store category for easy access
     input.dataset.period = currentPeriod;       // Store period
     input.inputMode = 'decimal'; 
+    input.autocomplete = 'off';
 
     // --- Clear the cell and add the input ---
     targetCell.innerHTML = '';
@@ -806,22 +806,23 @@ async function saveBudgetValue(input) {
 
     activeBudgetInput = null; // Deactivate editing state
 
-    let newValue = parseFloat(newValueStr);
+    let newValue = parseCurrency(newValueStr);
 
     // Basic validation
-    if (isNaN(newValue) || newValue < 0) {
-        console.warn("Invalid budget amount entered:", newValueStr);
+    // Basic validation (allow 0 for budget, but not negative)
+    // parseCurrency returns 0 for invalid input, so check < 0
+    if (newValue < 0) { // *** CHANGED validation logic slightly ***
+        console.warn("Invalid budget amount entered (negative or parse failed):", newValueStr);
         // Revert to original value on invalid input
         input.parentElement.textContent = originalValueStr; // Restore original text
+        updateStatusMessage(statusMessageDiv, "Budget amount cannot be negative.", "error"); // Inform user
         return;
     }
-    newValue = parseFloat(newValue.toFixed(2)); // Ensure 2 decimal places
 
     const formattedNewValue = formatCurrency(newValue);
 
     // --- Optimistic UI Update (show new value immediately) ---
     input.parentElement.textContent = formattedNewValue;
-    // Update totals visually (might be slightly off until data reloads, but good feedback)
     updateBudgetTableTotals();
 
 
@@ -1922,35 +1923,21 @@ function renderYearlyFooter(tfoot, monthlyResults, yearlyResult) {
  */
 function parseCurrency(value) {
     if (typeof value !== 'string' || !value.trim()) return 0;
-
     let numStr = value.trim();
     let isNegative = false;
-
-    // Check for negative parentheses
     if (numStr.startsWith('(') && numStr.endsWith(')')) {
         isNegative = true;
-        numStr = numStr.substring(1, numStr.length - 1); // Remove parentheses
+        numStr = numStr.substring(1, numStr.length - 1);
     }
-
-    // Remove thousands separators (dots in this case)
-    numStr = numStr.replace(/\./g, '');
-
-    // Replace the decimal separator (comma) with a dot for standard parsing
-    numStr = numStr.replace(/,/g, '.');
-
-    // Parse the cleaned string
+    numStr = numStr.replace(/\./g, ''); // Remove thousands dots
+    numStr = numStr.replace(/,/g, '.'); // Replace decimal comma with dot
     let number = parseFloat(numStr);
-
-    // Check if parsing was successful
     if (isNaN(number)) {
         console.warn(`Could not parse currency value: "${value}" -> "${numStr}"`);
         return 0;
     }
-
-    // Apply the negative sign if necessary
     return isNegative ? -number : number;
 }
-
 // --- Chart Data Calculation Function ---
 
 /**
@@ -3596,7 +3583,6 @@ function saveCategoryAndGroup(categoryData) {
 }
 
 /** Handles the submission of the new transaction form. */
-/** Handles the submission of the new transaction form. */
 async function handleAddTransaction(event) {
     event.preventDefault();
 
@@ -3617,9 +3603,15 @@ async function handleAddTransaction(event) {
     } else if (!txAccountSelect.value) {
         validationPassed = false; validationError = "Please select the source account.";
     }
-    const amount = parseFloat(txAmountInput.value);
-    if (validationPassed && (isNaN(amount) || amount <= 0)) {
-        validationPassed = false; validationError = "Invalid amount. Amount must be positive.";
+    let amount = 0; // Declare amount variable
+    if (validationPassed) {
+        amount = parseCurrency(txAmountInput.value); // Use the custom parser
+
+        // Validate the parsed number (parseCurrency returns 0 for invalid)
+        if (amount <= 0) {
+            validationPassed = false;
+            validationError = "Invalid amount. Amount must be positive and correctly formatted (e.g., 5,50 or 1.234,56).";
+        }
     }
 
     // Type-Specific Validations
