@@ -1,113 +1,122 @@
 // python3 -m http.server
 console.log("Script loaded!");
 
-// --- DOM Element References ---
-const dashboardSection = document.getElementById('dashboard-summary');
-const transactionsSection = document.getElementById('transactions-list');
-const balancesList = document.getElementById('balances-list');
-const rtaValueElement = document.getElementById('rta-value');
-const budgetViewRtaValueElement = document.getElementById('budget-view-rta-value'); 
-const transactionsTbody = document.getElementById('transactions-tbody');
-const currentYearSpan = document.getElementById('current-year');
-const summaryMonthElement = document.getElementById('summary-month');
-const summaryIncomeElement = document.getElementById('summary-income');
-const summarySpendingElement = document.getElementById('summary-spending');
-const filterSearchInput = document.getElementById('filter-search');
-const filterAccountSelect = document.getElementById('filter-account');
-const filterCategorySelect = document.getElementById('filter-category');
-const filterStartDateInput = document.getElementById('filter-start-date');
-const filterEndDateInput = document.getElementById('filter-end-date');
-const resetFiltersButton = document.getElementById('reset-filters');
-const noResultsMessage = document.getElementById('no-results-message');
+// --- DOM Element References (Declare with let, assign in initializeApp) ---
+let dashboardSection;
+let transactionsSection;
+let balancesList;
+let rtaValueElement;
+let budgetViewRtaValueElement;
+let transactionsTbody;
+let currentYearSpan;
+let summaryMonthElement;
+let summaryIncomeElement;
+let summarySpendingElement;
+let filterSearchInput;
+let filterAccountSelect;
+let filterCategorySelect;
+let filterStartDateInput;
+let filterEndDateInput;
+let resetFiltersButton;
+let noResultsMessage;
 let db; // Variable to hold the database instance
 
-const addExpenseFormSection = document.getElementById('add-expense-form');
-const newTxForm = document.getElementById('new-tx-form');
-const txTypeSelect = document.getElementById('tx-type');
-const txDateInput = document.getElementById('tx-date');
-const txAccountSelect = document.getElementById('tx-account');
-const payeeGroup = document.getElementById('payee-group');
-const payeeLabel = document.getElementById('payee-label');
-const txPayeeInput = document.getElementById('tx-payee');
-const txTransferToAccountSelect = document.getElementById('tx-transfer-to-account');
-const categoryGroup = document.getElementById('category-group');
-const txCategorySelect = document.getElementById('tx-category');
-const txAmountInput = document.getElementById('tx-amount');
-const txMemoInput = document.getElementById('tx-memo');
-const addTxStatusDiv = document.getElementById('add-tx-status');
+let addExpenseFormSection;
+let newTxForm;
+let txTypeSelect;
+let txDateInput;
+let txAccountSelect;
+let payeeGroup;
+let payeeLabel;
+let txPayeeInput;
+let txTransferToAccountSelect;
+let categoryGroup;
+let txCategorySelect;
+let txAmountInput;
+let txMemoInput;
+let addTxStatusDiv;
 
-const syncSection = document.getElementById('sync-section');
-const syncStandaloneContent = document.getElementById('sync-standalone-content');
+let syncSection;
+let syncStandaloneContent;
 
 // --- Import/Export Elements ---
-const exportStandaloneButton = document.getElementById('export-standalone-button');
-const exportStandaloneStatusDiv = document.getElementById('export-standalone-status');
-const importStandaloneFileInput = document.getElementById('import-standalone-file');
-const importStandaloneButton = document.getElementById('import-standalone-button');
-const importStandaloneStatusDiv = document.getElementById('import-standalone-status');
-const statusMessageDiv = document.getElementById('status-message');
+let exportStandaloneButton;
+let exportStandaloneStatusDiv;
+let importStandaloneFileInput;
+let importStandaloneButton;
+let importStandaloneStatusDiv;
+let statusMessageDiv;
 
 let localBudgetData = null; // Store data loaded/managed in the app
 
-const budgetViewSection = document.getElementById('budget-view');
-const budgetViewMonthSpan = document.getElementById('budget-view-month');
-const budgetTbody = document.getElementById('budget-tbody');
-const totalBudgetedValueTd = document.getElementById('total-budgeted-value');
-const totalSpentValueTd = document.getElementById('total-spent-value');
-const totalAvailableValueTd = document.getElementById('total-available-value');
-const budgetNoDataMsg = document.getElementById('budget-no-data');
+let budgetViewSection;
+let budgetViewMonthSpan;
+let budgetTbody;
+let totalBudgetedValueTd;
+let totalSpentValueTd;
+let totalAvailableValueTd;
+let budgetNoDataMsg;
 
-const chartsSection = document.getElementById('charts-section');
-const spendingChartCanvas = document.getElementById('spendingPieChart');
-const chartMonthDisplaySpan = document.getElementById('chart-month-display');
-const chartNoDataMsg = document.getElementById('chart-no-data');
+let chartsSection;
+let spendingChartCanvas;
+let chartMonthDisplaySpan;
+let chartNoDataMsg;
 let spendingPieChartInstance = null; // To destroy previous chart before rendering new one
 
-const menuToggleButton = document.getElementById('menu-toggle');
-const menuCloseButton = document.getElementById('menu-close');
-const sideMenu = document.getElementById('side-menu');
-const overlay = document.getElementById('overlay');
-const navLinks = document.querySelectorAll('.nav-link');
-const mainSections = document.querySelectorAll('.main-section'); // Get all sections
+// NEW Chart Refs
+let showPieChartBtn;
+let showBarChartBtn;
+let spendingPieChartArea;
+let incomeExpenseBarChartArea; // <<< The problematic one!
+let incomeExpenseBarChartCanvas;
+let trendChartNoDataMsg;
+let incomeExpenseBarChartInstance = null; // Instance for the new bar chart
+
+
+let menuToggleButton;
+let menuCloseButton;
+let sideMenu;
+let overlay;
+let navLinks; // Will be assigned via querySelectorAll
+let mainSections; // Will be assigned via querySelectorAll
 
 // --- Manage Accounts Elements ---
-const manageAccountsSection = document.getElementById('manage-accounts-section');
-const manageAccountsContent = document.getElementById('manage-accounts-content'); // Wrapper div
-const addAccountForm = document.getElementById('add-account-form');
-const newAccountNameInput = document.getElementById('new-account-name');
-const newAccountTypeSelect = document.getElementById('new-account-type');
-const newAccountBalanceInput = document.getElementById('new-account-balance');
-const addAccountStatusDiv = document.getElementById('add-account-status');
-const existingAccountsList = document.getElementById('existing-accounts-list');
+let manageAccountsSection;
+let manageAccountsContent; // Wrapper div
+let addAccountForm;
+let newAccountNameInput;
+let newAccountTypeSelect;
+let newAccountBalanceInput;
+let addAccountStatusDiv;
+let existingAccountsList;
 
 // --- Manage Categories Elements ---
-const manageCategoriesSection = document.getElementById('manage-categories-section');
-const manageCategoriesContent = document.getElementById('manage-categories-content');
-const addCategoryForm = document.getElementById('add-category-form');
-const newCategoryNameInput = document.getElementById('new-category-name');
-const newCategoryGroupSelect = document.getElementById('new-category-group');
-const addCategoryStatusDiv = document.getElementById('add-category-status');
-const existingCategoriesListDiv = document.getElementById('existing-categories-list'); // The div containing the list
+let manageCategoriesSection;
+let manageCategoriesContent;
+let addCategoryForm;
+let newCategoryNameInput;
+let newCategoryGroupSelect;
+let addCategoryStatusDiv;
+let existingCategoriesListDiv; // The div containing the list
 
 // --- Date Navigation Buttons ---
-const budgetPrevMonthBtn = document.getElementById('budget-prev-month');
-const budgetNextMonthBtn = document.getElementById('budget-next-month');
-const chartPrevMonthBtn = document.getElementById('chart-prev-month');
-const chartNextMonthBtn = document.getElementById('chart-next-month');
+let budgetPrevMonthBtn;
+let budgetNextMonthBtn;
+let chartPrevMonthBtn;
+let chartNextMonthBtn;
 
 // --- Yearly Summary Elements ---
-const yearlySummarySection = document.getElementById('yearly-summary-section');
-const yearlySummaryYearSpan = document.getElementById('yearly-summary-year');
-const yearlySummaryTbody = document.getElementById('yearly-summary-tbody');
-const yearlySummaryTfoot = document.getElementById('yearly-summary-tfoot');
-const yearlySummaryNoDataMsg = document.getElementById('yearly-summary-no-data');
-const yearlyPrevYearBtn = document.getElementById('yearly-prev-year');
-const yearlyNextYearBtn = document.getElementById('yearly-next-year');
+let yearlySummarySection;
+let yearlySummaryYearSpan;
+let yearlySummaryTbody;
+let yearlySummaryTfoot;
+let yearlySummaryNoDataMsg;
+let yearlyPrevYearBtn;
+let yearlyNextYearBtn;
 
 // --- Define Constants ---
 const DB_NAME = 'budgetAppDB';
 const DB_VERSION = 2; // 
-// --- IndexedDB Store Names  ---
 const TX_STORE_NAME = 'transactions';
 const ACCOUNT_STORE_NAME = 'accounts';
 const CATEGORY_STORE_NAME = 'categories';
@@ -121,6 +130,7 @@ const UNCATEGORIZED = "Uncategorized";
 const SAVINGS_GROUP_NAME = "Savings Goals";
 const ARCHIVED_GROUP_NAME = "Archived";
 
+// --- Global Variables ---
 let currentBudgetMonth = null; // Stores "YYYY-MM" for the budget view
 let currentChartMonth = null;  // Stores "YYYY-MM" for the chart view
 let earliestDataMonth = null; // Stores "YYYY-MM" of the first transaction
@@ -129,6 +139,7 @@ let activeBudgetInput = null;
 let currentYearlySummaryYear = null; // Stores integer year (e.g., 2024)
 let earliestDataYear = null; // Stores earliest year from data
 let latestDataYear = null; // Stores latest year from data
+let activeChartType = 'pie'; // 'pie' or 'bar' - Track currently selected chart
 
 /**
  * Initializes the IndexedDB database.
@@ -206,14 +217,119 @@ function initDB() {
         };
     });
 }
+
 // --- Application Initialization ---
 async function initializeApp() {
     console.log("Initializing application...");
     await initDB().catch(error => { // Initialize DB first
         console.error("FATAL: Failed to initialize IndexedDB:", error);
-        updateStatus("Critical Error: Offline storage unavailable. App cannot function correctly.", "error");
+        // Attempt to update status, might fail if statusMessageDiv isn't assigned yet
+         try { updateStatus("Critical Error: Offline storage unavailable. App cannot function correctly.", "error"); } catch(e){}
         return; // Stop further initialization
     });
+
+    // <<< --- ASSIGN DOM ELEMENTS HERE --- >>>
+    dashboardSection = document.getElementById('dashboard-summary');
+    transactionsSection = document.getElementById('transactions-list');
+    balancesList = document.getElementById('balances-list');
+    rtaValueElement = document.getElementById('rta-value');
+    budgetViewRtaValueElement = document.getElementById('budget-view-rta-value');
+    transactionsTbody = document.getElementById('transactions-tbody');
+    currentYearSpan = document.getElementById('current-year');
+    summaryMonthElement = document.getElementById('summary-month');
+    summaryIncomeElement = document.getElementById('summary-income');
+    summarySpendingElement = document.getElementById('summary-spending');
+    filterSearchInput = document.getElementById('filter-search');
+    filterAccountSelect = document.getElementById('filter-account');
+    filterCategorySelect = document.getElementById('filter-category');
+    filterStartDateInput = document.getElementById('filter-start-date');
+    filterEndDateInput = document.getElementById('filter-end-date');
+    resetFiltersButton = document.getElementById('reset-filters');
+    noResultsMessage = document.getElementById('no-results-message');
+
+    addExpenseFormSection = document.getElementById('add-expense-form');
+    newTxForm = document.getElementById('new-tx-form');
+    txTypeSelect = document.getElementById('tx-type');
+    txDateInput = document.getElementById('tx-date');
+    txAccountSelect = document.getElementById('tx-account');
+    payeeGroup = document.getElementById('payee-group');
+    payeeLabel = document.getElementById('payee-label');
+    txPayeeInput = document.getElementById('tx-payee');
+    txTransferToAccountSelect = document.getElementById('tx-transfer-to-account');
+    categoryGroup = document.getElementById('category-group');
+    txCategorySelect = document.getElementById('tx-category');
+    txAmountInput = document.getElementById('tx-amount');
+    txMemoInput = document.getElementById('tx-memo');
+    addTxStatusDiv = document.getElementById('add-tx-status');
+
+    syncSection = document.getElementById('sync-section');
+    syncStandaloneContent = document.getElementById('sync-standalone-content');
+    exportStandaloneButton = document.getElementById('export-standalone-button');
+    exportStandaloneStatusDiv = document.getElementById('export-standalone-status');
+    importStandaloneFileInput = document.getElementById('import-standalone-file');
+    importStandaloneButton = document.getElementById('import-standalone-button');
+    importStandaloneStatusDiv = document.getElementById('import-standalone-status');
+    statusMessageDiv = document.getElementById('status-message'); // Assign the main status div
+
+    budgetViewSection = document.getElementById('budget-view');
+    budgetViewMonthSpan = document.getElementById('budget-view-month');
+    budgetTbody = document.getElementById('budget-tbody');
+    totalBudgetedValueTd = document.getElementById('total-budgeted-value');
+    totalSpentValueTd = document.getElementById('total-spent-value');
+    totalAvailableValueTd = document.getElementById('total-available-value');
+    budgetNoDataMsg = document.getElementById('budget-no-data');
+
+    chartsSection = document.getElementById('charts-section');
+    spendingChartCanvas = document.getElementById('spendingPieChart');
+    chartMonthDisplaySpan = document.getElementById('chart-month-display');
+    chartNoDataMsg = document.getElementById('chart-no-data');
+
+    // Chart Refs Assignment
+    showPieChartBtn = document.getElementById('show-pie-chart-btn');
+    showBarChartBtn = document.getElementById('show-bar-chart-btn');
+    spendingPieChartArea = document.getElementById('spending-pie-chart-area');
+    incomeExpenseBarChartArea = document.getElementById('income-expense-bar-chart-area'); // Assigned here!
+    incomeExpenseBarChartCanvas = document.getElementById('incomeExpenseBarChart');
+    trendChartNoDataMsg = document.getElementById('trend-chart-no-data');
+
+    menuToggleButton = document.getElementById('menu-toggle');
+    menuCloseButton = document.getElementById('menu-close');
+    sideMenu = document.getElementById('side-menu');
+    overlay = document.getElementById('overlay');
+    navLinks = document.querySelectorAll('.nav-link'); // querySelectorAll is fine here
+    mainSections = document.querySelectorAll('.main-section'); // querySelectorAll is fine here
+
+    manageAccountsSection = document.getElementById('manage-accounts-section');
+    manageAccountsContent = document.getElementById('manage-accounts-content');
+    addAccountForm = document.getElementById('add-account-form');
+    newAccountNameInput = document.getElementById('new-account-name');
+    newAccountTypeSelect = document.getElementById('new-account-type');
+    newAccountBalanceInput = document.getElementById('new-account-balance');
+    addAccountStatusDiv = document.getElementById('add-account-status');
+    existingAccountsList = document.getElementById('existing-accounts-list');
+
+    manageCategoriesSection = document.getElementById('manage-categories-section');
+    manageCategoriesContent = document.getElementById('manage-categories-content');
+    addCategoryForm = document.getElementById('add-category-form');
+    newCategoryNameInput = document.getElementById('new-category-name');
+    newCategoryGroupSelect = document.getElementById('new-category-group');
+    addCategoryStatusDiv = document.getElementById('add-category-status');
+    existingCategoriesListDiv = document.getElementById('existing-categories-list');
+
+    budgetPrevMonthBtn = document.getElementById('budget-prev-month');
+    budgetNextMonthBtn = document.getElementById('budget-next-month');
+    chartPrevMonthBtn = document.getElementById('chart-prev-month');
+    chartNextMonthBtn = document.getElementById('chart-next-month');
+
+    yearlySummarySection = document.getElementById('yearly-summary-section');
+    yearlySummaryYearSpan = document.getElementById('yearly-summary-year');
+    yearlySummaryTbody = document.getElementById('yearly-summary-tbody');
+    yearlySummaryTfoot = document.getElementById('yearly-summary-tfoot');
+    yearlySummaryNoDataMsg = document.getElementById('yearly-summary-no-data');
+    yearlyPrevYearBtn = document.getElementById('yearly-prev-year');
+    yearlyNextYearBtn = document.getElementById('yearly-next-year');
+    // <<< --- END OF DOM ELEMENT ASSIGNMENTS --- >>>
+
 
     if (currentYearSpan) currentYearSpan.textContent = new Date().getFullYear();
     setupMenuListeners();
@@ -221,23 +337,61 @@ async function initializeApp() {
     setupFilterListeners();
     setupAddFormListeners();
     setupSyncButtonListeners();
-    setupStandaloneEventListeners(); // Keep standalone specific listeners here
+    setupStandaloneEventListeners();
     setupNavButtonListeners();
     setupBudgetEditingListener();
-    setupNavButtonListeners(); // Existing budget/chart buttons
-    setupYearlyNavButtonListeners(); // Add this call
-    setupBudgetEditingListener();
+    setupYearlyNavButtonListeners();
+    setupChartToggleButtons(); // Setup listeners AFTER elements are assigned
 
     await loadDataFromDB();
 
-    // Show the dashboard by default after loading
-    if (dashboardSection) dashboardSection.classList.remove('hidden');
-    setActiveNavLink('dashboard-summary'); // Activate dashboard link
-    if(txTypeSelect) updateAddFormForTxType(txTypeSelect.value);
+    // Default to dashboard after load
+    showSection('dashboard-summary'); // Use helper to show initial section
 
+    if(txTypeSelect) updateAddFormForTxType(txTypeSelect.value);
 
     console.log("Application initialization complete.");
 }
+
+
+// --- Setup Chart Toggle Button Listeners ---
+function setupChartToggleButtons() {
+    if (showPieChartBtn) {
+        showPieChartBtn.addEventListener('click', () => switchChartView('pie'));
+    }
+    if (showBarChartBtn) {
+        showBarChartBtn.addEventListener('click', () => switchChartView('bar'));
+    }
+}
+// --- Function to switch between chart views ---
+function switchChartView(chartType) {
+    if (activeChartType === chartType) return; // No change needed
+
+    activeChartType = chartType;
+
+    const isPieActive = chartType === 'pie';
+
+    // Toggle button active states
+    showPieChartBtn?.classList.toggle('active-chart-button', isPieActive);
+    showBarChartBtn?.classList.toggle('active-chart-button', !isPieActive);
+
+    // Toggle chart area visibility
+    spendingPieChartArea?.classList.toggle('hidden', !isPieActive);
+    incomeExpenseBarChartArea?.classList.toggle('hidden', isPieActive);
+
+    // Optional: Re-render or ensure data is fresh for the activated chart
+    // Since data is calculated when navigating to the section, just switching visibility might be enough.
+    // If data could become stale, you might call updateChartView() or updateTrendChartView() here.
+    console.log(`Switched chart view to: ${chartType}`);
+
+    // Ensure the correct chart is rendered if it wasn't already
+    if (isPieActive) {
+         if (currentChartMonth) updateChartView(currentChartMonth);
+    } else {
+         updateTrendChartView(); // Recalculate/render trend chart
+    }
+}
+
 
 // --- Setup Budget Editing Listener ---
 function setupBudgetEditingListener() {
@@ -438,6 +592,51 @@ function handleNavLinkClick(event) {
     }
 
     toggleMenu(true); // Close menu
+}
+function showSection(sectionId) {
+    // Deactivate all links
+    navLinks.forEach(nav => {
+       nav.classList.remove('active-link');
+       nav.removeAttribute('aria-current');
+   });
+
+   // Hide all sections
+   mainSections.forEach(section => section.classList.add('hidden'));
+
+   // Show target section
+   const targetSection = document.getElementById(sectionId);
+   if (targetSection) {
+       targetSection.classList.remove('hidden');
+       setActiveNavLink(sectionId); // Activate the corresponding link
+       console.log(`Navigating to section: #${sectionId}`);
+
+       // --- Special actions when navigating TO a section ---
+       if (sectionId === 'charts-section') {
+           // Ensure default chart view is set when entering the section
+           switchChartView('pie'); // Default to pie chart view
+
+           // Ensure both charts have data calculated when the section loads
+           const monthToUse = currentChartMonth || findLatestMonth(localBudgetData?.transactions) || getCurrentRealMonth();
+           updateChartView(monthToUse); // Update pie chart for latest/current month
+           updateTrendChartView(); // Update the trend chart
+       } else if (sectionId === 'budget-view') {
+           const monthToUse = currentBudgetMonth || findLatestMonth(localBudgetData?.transactions) || getCurrentRealMonth();
+           updateBudgetView(monthToUse);
+       } else if (sectionId === 'yearly-summary-section') {
+           const yearToUse = currentYearlySummaryYear || findLatestYear(localBudgetData?.transactions) || getCurrentRealYear();
+           updateYearlySummaryView(yearToUse);
+       }
+       // Add other section-specific initializations if needed
+
+   } else {
+       console.warn(`Target section not found: #${sectionId}`);
+       // Fallback to dashboard
+       const fallbackSection = document.getElementById('dashboard-summary');
+       if (fallbackSection) {
+           fallbackSection.classList.remove('hidden');
+           setActiveNavLink('dashboard-summary'); // Activate dashboard link
+       }
+   }
 }
 
 /** Utility to activate a specific nav link by its data-section ID */
@@ -958,23 +1157,21 @@ async function processBudgetData(data) {
     if (!data) {
         console.warn("processBudgetData called with null data.");
         // Display default "no data" state
-         clearDataDisplay();
-         const defaultPeriod = getCurrentRealMonth();
-         const defaultYear = getCurrentRealYear();
-         updateYearlySummaryView(defaultYear); 
-         updateBudgetView(defaultPeriod);
-         updateChartView(defaultPeriod);
-         displayRTA(0);
-         displayAccountBalances({});
-         displayDashboardSummary({ latestMonth: 'N/A', income: 0, spending: 0 });
-         displayTransactions([]); // Pass empty array
-         displayExistingAccounts({});
-         populateCategoryGroupDropdown({}, []); // Pass empty data
-         displayExistingCategories([], {});
-         renderBudgetTable([], { budgeted: 0, spent: 0, available: 0 }, 'N/A');
-         renderSpendingChart(null);
-         // Ensure standalone forms are enabled/visible
-         setupStandaloneEventListeners();
+        clearDataDisplay();
+        const defaultPeriod = getCurrentRealMonth();
+        const defaultYear = getCurrentRealYear();
+        updateBudgetView(defaultPeriod); // Will show 'no data' message
+        updateChartView(defaultPeriod);  // Will show 'no data' message for pie
+        updateTrendChartView();          // Will show 'no data' message for bar
+        updateYearlySummaryView(defaultYear); // Will show 'no data' message
+        displayRTA(0);
+        displayAccountBalances({});
+        displayDashboardSummary({ latestMonth: 'N/A', income: 0, spending: 0 });
+        displayTransactions([]); // Pass empty array explicitly
+        displayExistingAccounts({});
+        populateCategoryGroupDropdown({}, []); // Pass empty data
+        displayExistingCategories([], {});
+        setupStandaloneEventListeners();
         return;
     }
 
@@ -1034,17 +1231,22 @@ async function processBudgetData(data) {
         displayTransactions(allTransactionsForDisplay); // Only pass the single list
         resetAllFilters();
 
-        // --- Update Views for Initial Month ---
+        // --- Update Views for Initial Period ---
         updateBudgetView(initialDisplayMonth);
-        updateChartView(initialDisplayMonth);
+        updateChartView(initialDisplayMonth); // Handles Pie Chart
+        updateTrendChartView();              // Handles Bar Chart Trend
         updateYearlySummaryView(initialDisplayYear);
 
     } catch (uiError) {
         console.error("Error updating UI:", uiError);
         updateStatus(`Error displaying data: ${uiError.message}`, "error");
-        clearDataDisplay();
+        clearDataDisplay(); // Clear display on error
         const defaultYear = getCurrentRealYear();
-        updateYearlySummaryView(defaultYear);     
+        const defaultPeriod = getCurrentRealMonth();
+        updateYearlySummaryView(defaultYear);
+        updateBudgetView(defaultPeriod);
+        updateChartView(defaultPeriod);
+        updateTrendChartView(); // Also clear/show no data for trend chart  
     }
 }
 // --- Budget Calculation Helper Functions ---
@@ -1150,28 +1352,29 @@ function updateBudgetView(period) {
     updateNavButtonStates(budgetPrevMonthBtn, budgetNextMonthBtn, period);
 }
 
+// --- Chart Update Functions ---
+
 /**
- * Updates the Chart View section for a specific period.
+ * Updates the MONTHLY SPENDING PIE CHART View section for a specific period.
  * @param {string} period The target period ("YYYY-MM").
  */
 function updateChartView(period) {
-    console.log(`Updating Chart View for: ${period}`);
-    currentChartMonth = period; // Update state
+    console.log(`Updating Monthly Spending Chart View for: ${period}`);
+    currentChartMonth = period; // Update state FOR THE PIE CHART
 
-    // Use localBudgetData directly
     const data = localBudgetData;
      if (!data) {
-        console.warn("No data available to update chart view.");
-        renderSpendingChart(null); // Render empty state
+        console.warn("No data available to update monthly chart view.");
+        renderSpendingChart(null); // Render empty state for pie chart
         if (chartMonthDisplaySpan) chartMonthDisplaySpan.textContent = period || '--';
         return;
     }
 
     // Transactions always come from the main store in localBudgetData
     let transactionsToUse = data.transactions || [];
-    let titleSuffix = ""; // No pending suffix needed
+    // let titleSuffix = ""; // No pending suffix needed
 
-     if (chartMonthDisplaySpan) chartMonthDisplaySpan.textContent = period + titleSuffix;
+     if (chartMonthDisplaySpan) chartMonthDisplaySpan.textContent = period; // No suffix needed
 
     // Calculate chart data
     const chartData = calculateSpendingBreakdown(
@@ -1181,10 +1384,31 @@ function updateChartView(period) {
     );
 
     // Render the chart
-    renderSpendingChart(chartData);
+    renderSpendingChart(chartData); // Renders the PIE chart
 
-    // Update navigation button states
+    // Update navigation button states for the MONTHLY chart
     updateNavButtonStates(chartPrevMonthBtn, chartNextMonthBtn, period);
+}
+
+/**
+ * Updates the INCOME/EXPENSE TREND BAR CHART View.
+ * Calculates data for the last 12 months and renders the bar chart.
+ */
+function updateTrendChartView() {
+    console.log(`Updating Income/Expense Trend Chart View`);
+
+    const data = localBudgetData;
+    if (!data || !data.transactions || data.transactions.length === 0) {
+       console.warn("No data available to update trend chart view.");
+       renderIncomeExpenseBarChart(null); // Render empty state for bar chart
+       return;
+    }
+
+    // Calculate trend data (e.g., for the last 12 months)
+    const trendData = calculateIncomeExpenseTrendData(data.transactions);
+
+    // Render the bar chart
+    renderIncomeExpenseBarChart(trendData);
 }
 
 /**
@@ -2016,7 +2240,84 @@ function calculateSpendingBreakdown(period, transactions = [], groupsData = {}) 
     return { labels, data };
 }
 
-// --- Chart Rendering Function ---
+/**
+ * Calculates income and expense totals for the last 12 months.
+ * @param {Array} transactions List of all transactions.
+ * @returns {{labels: Array<string>, incomeData: Array<number>, expenseData: Array<number>}|null} Data for the bar chart or null.
+ */
+function calculateIncomeExpenseTrendData(transactions = []) {
+    if (!transactions || transactions.length === 0) {
+        return null;
+    }
+
+    // 1. Determine the 12-month range (ending in the latest transaction month or current month)
+    const latestMonth = findLatestMonth(transactions) || getCurrentRealMonth();
+    const endDate = new Date(latestMonth + '-01T12:00:00Z'); // Use UTC noon to avoid timezone issues near month end
+
+    const months = []; // Array to store { period: "YYYY-MM", income: 0, expense: 0 }
+    const labels = []; // Array for chart labels (e.g., "Jan 24")
+
+    for (let i = 0; i < 12; i++) {
+        // Calculate the date for the start of the month, 'i' months ago
+        const targetDate = new Date(endDate);
+        targetDate.setUTCMonth(endDate.getUTCMonth() - i); // Go back i months
+
+        const year = targetDate.getUTCFullYear();
+        const month = (targetDate.getUTCMonth() + 1).toString().padStart(2, '0');
+        const period = `${year}-${month}`;
+
+        // Format label (e.g., "Jan 24")
+        const shortMonthName = targetDate.toLocaleString('default', { month: 'short', timeZone: 'UTC' });
+        const shortYear = year.toString().slice(-2);
+        labels.push(`${shortMonthName} ${shortYear}`);
+
+        months.push({ period: period, income: 0, expense: 0 });
+    }
+
+    months.reverse(); // Put in chronological order (oldest first)
+    labels.reverse();
+
+    // 2. Iterate through transactions and aggregate
+    transactions.forEach(tx => {
+        if (!tx.date || tx.type === 'transfer') return; // Skip transfers and tx without dates
+
+        const period = tx.date.substring(0, 7);
+        const monthData = months.find(m => m.period === period);
+
+        if (monthData) {
+             try {
+                const amount = parseFloat(tx.amount || 0);
+                if (isNaN(amount)) return;
+
+                if (tx.type === 'income') {
+                    monthData.income += amount;
+                } else if (tx.type === 'expense') {
+                    monthData.expense += amount;
+                } else if (tx.type === 'refund') {
+                    monthData.expense -= amount; // Refunds reduce expense total
+                }
+            } catch (e) {
+                 console.warn(`Error parsing amount during trend calc: ${e}`, tx);
+            }
+        }
+    });
+
+    // 3. Extract data for Chart.js
+    const incomeData = months.map(m => m.income);
+    const expenseData = months.map(m => m.expense);
+
+    // Check if there's any actual data to display
+    const hasData = incomeData.some(d => d > 0) || expenseData.some(d => d > 0);
+    if (!hasData) {
+        return null;
+    }
+
+
+    return { labels, incomeData, expenseData };
+}
+
+
+// --- Chart Rendering Functions ---
 
 /**
  * Renders the spending pie chart using Chart.js.
@@ -2084,6 +2385,107 @@ function renderSpendingChart(chartData) {
         }
     });
     console.log("Rendered new spending chart.");
+}
+
+/**
+ * Renders the Income vs. Expense bar chart using Chart.js.
+ * @param {{labels: Array<string>, incomeData: Array<number>, expenseData: Array<number>}|null} chartData Data object or null.
+ */
+function renderIncomeExpenseBarChart(chartData) {
+    const canvas = incomeExpenseBarChartCanvas;
+    const noDataMsg = trendChartNoDataMsg;
+    const container = incomeExpenseBarChartArea; // The container div
+
+    if (!canvas || !noDataMsg || !container) {
+        console.error("Cannot render trend chart: Required elements not found.");
+        return;
+    }
+
+    // Hide message, show container by default
+    noDataMsg.classList.add('hidden');
+    // container.classList.remove('hidden'); // Visibility is controlled by switchChartView now
+
+    // Destroy previous chart instance if it exists
+    if (incomeExpenseBarChartInstance) {
+        incomeExpenseBarChartInstance.destroy();
+        incomeExpenseBarChartInstance = null;
+        console.log("Destroyed previous trend chart instance.");
+    }
+
+    // Handle case where there is no data
+    if (!chartData) {
+        console.log("No data to render for trend chart.");
+        noDataMsg.classList.remove('hidden'); // Show the 'no data' message
+        // Optionally hide the canvas container too if you want it completely gone
+        // canvas.style.display = 'none';
+        return;
+    } else {
+        // Ensure canvas is visible if we have data
+        // canvas.style.display = 'block';
+    }
+
+
+    const ctx = canvas.getContext('2d');
+    incomeExpenseBarChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartData.labels,
+            datasets: [
+                {
+                    label: 'Income',
+                    data: chartData.incomeData,
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)', // Greenish
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Expenses',
+                    data: chartData.expenseData,
+                    backgroundColor: 'rgba(255, 99, 132, 0.6)', // Reddish
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        // Optional: Format Y-axis ticks as currency
+                        callback: function(value, index, values) {
+                            return formatCurrency(value); // Use your existing formatter
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            const value = context.parsed.y || 0;
+                            label += formatCurrency(value); // Format tooltip value
+                            return label;
+                        }
+                    }
+                },
+                title: {
+                    display: false, // Already have an h3 above the chart
+                    // text: 'Income vs. Expense Trend (Last 12 Months)'
+                }
+            }
+        }
+    });
+    console.log("Rendered new income/expense trend chart.");
 }
 
 // --- Helper Functions --- 

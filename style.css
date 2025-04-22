@@ -527,7 +527,7 @@ footer {
 
 /* --- Chart Section Styles --- */
 
-#charts-section h2 { /* Style if needed, similar to other card headers */
+#charts-section h2 {
     margin-top: 0;
     margin-bottom: 15px;
     border-bottom: 1px solid #eee;
@@ -535,15 +535,72 @@ footer {
     font-size: 1.3em;
     color: #495057;
 }
-
-/* Style the container div if you didn't use inline styles */
-#spending-chart-container {
-    position: relative; /* Needed for Chart.js responsiveness */
-    margin: 20px auto; /* Center the chart container */
+/* Chart Type Selector */
+.chart-type-selector {
+    display: flex;
+    justify-content: center; /* Center buttons */
+    gap: 10px; /* Space between buttons */
+    margin-bottom: 20px;
+    flex-wrap: wrap; /* Allow wrapping on small screens */
+}
+.chart-toggle-button {
+    padding: 8px 15px;
+    font-size: 0.95em;
+    cursor: pointer;
+    background-color: #f0f0f0; /* Default background */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    color: #333;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-#chart-no-data {
+.chart-toggle-button:hover {
+    background-color: #e0e0e0;
+}
+
+.chart-toggle-button.active-chart-button {
+    background-color: #007bff; /* Active background (e.g., blue) */
+    color: #fff; /* White text */
+    border-color: #0056b3;
+    font-weight: bold;
+}
+/* Style the container divs for charts */
+.chart-container {
+    position: relative; /* Needed for Chart.js responsiveness */
+    /* Common height/width constraints */
+    height: 60vh; /* Adjust as needed */
+    max-height: 450px; /* Max height */
+    width: 95%; /* Use most of the container width */
+    max-width: 700px; /* Max width for larger screens */
+    margin: 15px auto; /* Center the chart container */
+}
+
+/* Common style for 'No Data' messages */
+.chart-no-data-msg {
      color: #6c757d; /* Gray text */
+     text-align: center;
+     margin-top: 15px;
+     font-style: italic;
+}
+
+/* Specific header style if needed for the monthly chart nav */
+#spending-pie-chart-area .view-header-nav {
+    font-size: 1.1em; /* Adjust size if needed */
+    margin-bottom: 5px; /* Less margin below nav */
+    padding-bottom: 5px;
+    border-bottom: none; /* Remove border if desired */
+    font-weight: normal; /* Make it less prominent than main section header */
+}
+/* Responsive adjustments for chart containers if needed */
+@media (max-width: 768px) {
+    .chart-container {
+        height: 55vh; /* Slightly less height on mobile */
+        width: 100%; /* Full width on mobile */
+    }
+     .chart-toggle-button {
+         font-size: 0.9em;
+         padding: 6px 12px;
+     }
 }
 /* --- Responsive Table Styles --- */
 

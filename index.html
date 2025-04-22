@@ -25,18 +25,17 @@
         <ul>
             <li><a href="#add-expense-form" class="nav-link" data-section="add-expense-form">Add Income/Expense</a></li>
             <li><a href="#transactions-list" class="nav-link" data-section="transactions-list">Income/Expenses</a></li>
-            <li><a href="#manage-accounts-section" class="nav-link" data-section="manage-accounts-section">Manage Accounts</a></li>
-            <li><a href="#manage-categories-section" class="nav-link" data-section="manage-categories-section">Manage Categories</a></li>
+            <li><a href="#manage-accounts-section" class="nav-link" data-section="manage-accounts-section">Accounts</a></li>
+            <li><a href="#manage-categories-section" class="nav-link" data-section="manage-categories-section">Categories</a></li>
             <li><a href="#budget-view" class="nav-link" data-section="budget-view">Budget </a></li>
             <li><a href="#dashboard-summary" class="nav-link" data-section="dashboard-summary">Dashboard</a></li>
-            <li><a href="#charts-section" class="nav-link" data-section="charts-section">Chart</a></li>
+            <li><a href="#charts-section" class="nav-link" data-section="charts-section">Charts</a></li>
             <li><a href="#yearly-summary-section" class="nav-link" data-section="yearly-summary-section">Yearly Summary</a></li> 
-            <li><a href="#sync-section" class="nav-link" data-section="sync-section">Import/Export Data</a></li>
+            <li><a href="#sync-section" class="nav-link" data-section="sync-section">Import/Export</a></li>
         </ul>
     </nav>
     <div id="overlay" class="overlay"></div>
     <main class="container">
-        <!-- === MANAGE ACCOUNTS SECTION === -->
         <section id="manage-accounts-section" class="main-section hidden card">
             <h2>Manage Accounts</h2>
 
@@ -73,14 +72,11 @@
                 <hr style="margin: 20px 0;">
 
                 <h3>Existing Accounts</h3>
-                <p>Balances shown here reflect the initial setup or last calculated state. They don't update in real-time as transactions are added on this screen.</p>
                 <ul id="existing-accounts-list" class="summary-list" style="margin-top: 10px;">
-                    <li>No accounts added yet.</li> <!-- Placeholder -->
+                    <li>No accounts added yet.</li> 
                 </ul>
             </div>
         </section>
-
-        <!-- === MANAGE CATEGORIES SECTION === -->
     <section id="manage-categories-section" class="main-section hidden card">
         <h2>Manage Categories</h2>
 
@@ -142,20 +138,36 @@
                 </div>
             </div>
         </section>
-        <!-- === CHART SECTION === -->
+
         <section id="charts-section" class="main-section hidden">
-            <h2 class="view-header-nav"> <!-- Add class for potential styling -->
-                <button id="chart-prev-month" class="button button-small nav-button" aria-label="Previous month chart">< Prev</button>
-                <span>Spending Breakdown (<span id="chart-month-display">--</span>)</span>
-                <button id="chart-next-month" class="button button-small nav-button" aria-label="Next month chart">Next ></button>
-           </h2>
-            <h2>Spending Breakdown (<span id="chart-month-display">--</span>)</h2>
-            <div id="spending-chart-container" style="position: relative; height:60vh; width:80vw; max-width: 450px; margin: 15px auto;">
-                <canvas id="spendingPieChart"></canvas> <!-- Canvas element for Chart.js -->
+            <h2>Charts</h2>
+            <!-- Chart Type Selection Buttons -->
+            <div class="chart-type-selector">
+                <button id="show-pie-chart-btn" class="button chart-toggle-button active-chart-button">Spending Breakdown</button>
+                <button id="show-bar-chart-btn" class="button chart-toggle-button">Income/Expense Trend</button>
             </div>
-            <p id="chart-no-data" class="hidden" style="text-align: center; margin-top: 15px; font-style: italic;">No positive spending data available for this period to generate chart.</p>
+            <!-- Spending Breakdown Pie Chart Area -->
+            <div id="spending-pie-chart-area">
+                 <h3 class="view-header-nav"> <!-- Use h3 for sub-heading -->
+                    <button id="chart-prev-month" class="button button-small nav-button" aria-label="Previous month spending chart">< Prev</button>
+                    <span>Spending for <span id="chart-month-display">--</span></span>
+                    <button id="chart-next-month" class="button button-small nav-button" aria-label="Next month spending chart">Next ></button>
+                </h3>
+                <div id="spending-chart-container" class="chart-container">
+                    <canvas id="spendingPieChart"></canvas> <!-- Canvas element for Chart.js -->
+                </div>
+                <p id="chart-no-data" class="hidden chart-no-data-msg">No positive spending data available for this period.</p>
+            </div>
+            <!-- Income/Expense Trend Bar Chart Area -->
+            <div id="income-expense-bar-chart-area" class="hidden"> <!-- Hidden by default -->
+                 <h3 style="text-align: center; margin-top: 20px;">Income vs. Expense Trend (Last 12 Months)</h3> <!-- Simple Title -->
+                <div id="income-expense-chart-container" class="chart-container">
+                    <canvas id="incomeExpenseBarChart"></canvas> <!-- NEW Canvas for Bar Chart -->
+                </div>
+                <p id="trend-chart-no-data" class="hidden chart-no-data-msg">No data available for the trend chart.</p> <!-- NEW No Data Message -->
+            </div>
         </section>
-        <!-- === YEARLY SUMMARY SECTION === -->
+        
         <section id="yearly-summary-section" class="main-section hidden">
             <h2 class="view-header-nav"> <!-- Reuse header style -->
                 <button id="yearly-prev-year" class="button button-small nav-button" aria-label="Previous year summary">< Prev Year</button>
@@ -184,7 +196,6 @@
                 <p id="yearly-summary-no-data" class="hidden" style="text-align: center; margin-top: 15px; font-style: italic;">No transaction data available for this year.</p>
             </div>
         </section>
-        <!-- === BUDGET VIEW SECTION === -->
         <section id="budget-view" class="main-section hidden">
             <h2 class="view-header-nav"> <!-- Add class for potential styling -->
                 <button id="budget-prev-month" class="button button-small nav-button" aria-label="Previous month budget">< Prev</button>
@@ -214,7 +225,6 @@
             </div>
              <p id="budget-no-data" class="hidden" style="text-align: center; margin-top: 15px; font-style: italic;">No budget data available for this period.</p>
         </section>
-        <!-- === ADD NEW TRANSACTION SECTION === -->
         <section id="add-expense-form" class="main-section hidden"> <!-- Hide initially -->
             <h2>Add New Expense/Income</h2>
             <form id="new-tx-form">
@@ -268,8 +278,6 @@
                  <div id="add-tx-status" style="margin-top: 10px;"></div>
             </form>
         </section>
-
-        <!-- Sync/Import/Export Section -->
         <section id="sync-section" class="main-section hidden card">
             <h2 id="sync-section-title">Import / Export Data</h2> 
 
