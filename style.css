@@ -526,6 +526,12 @@ footer {
     font-style: italic;
     color: #0c5460;
 }
+/* Style for archived category rows */
+#budget-tbody tr.archived-category-row td {
+    background-color: #fffacd; 
+    font-style: italic;
+    color: #856404; 
+}
 
 #budget-no-data {
      color: #6c757d;

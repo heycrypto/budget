@@ -851,35 +851,40 @@ async function handleChangeCategoryGroup(event) {
 
     const newGroupName = groupSelect.value;
 
+    // Log the values being processed
+    console.log(`Attempting to change group for "${categoryName}" to "${newGroupName}"`);
+
     updateStatusMessage(itemStatusDiv, "Updating...", "info");
     button.disabled = true;
+    groupSelect.disabled = true; // Disable dropdown during update
 
     try {
         await updateCategoryGroup(categoryName, newGroupName); // Call DB function
 
         updateStatusMessage(itemStatusDiv, "Group updated!", "success");
 
-        // Update in-memory data for immediate reflection
+        console.log("Category group updated in DB, reloading data to refresh UI...");
+        await loadDataFromDB(); 
+
         if (localBudgetData && localBudgetData.category_groups) {
-             if (newGroupName === '') {
+             if (newGroupName === '') { // Handle "Unassigned" case
                  delete localBudgetData.category_groups[categoryName];
              } else {
                  localBudgetData.category_groups[categoryName] = newGroupName;
              }
+             console.log("In-memory category group data updated.");
         }
-        // Reloading data is safer for full consistency, but updating in-memory is faster UI feedback
-        // Consider keeping the loadDataFromDB call if complex interactions depend on it.
-        // For now, let's assume the in-memory update is sufficient for this specific action.
-        // If issues arise, uncomment the loadDataFromDB line.
-        // await loadDataFromDB(); // This will re-render the list
 
     } catch (error) {
         console.error(`Failed to update group for ${categoryName}:`, error);
         updateStatusMessage(itemStatusDiv, `Error: ${error}`, "error");
-        button.disabled = false; // Re-enable button on error
+        // Re-enable controls on error
+        button.disabled = false;
+        groupSelect.disabled = false;
     } finally {
     }
 }
+
 /**
  * Updates the group assignment for an existing category in IndexedDB.
  * Uses 'put' which handles both adding and updating.
@@ -1420,10 +1425,7 @@ function updateTrendChartView() {
 function updateNavButtonStates(prevBtn, nextBtn, displayedPeriod) {
     if (!prevBtn || !nextBtn || !displayedPeriod) return;
 
-    const currentRealMonth = getCurrentRealMonth();
-
-    // Disable "Next" if displaying the current real month or later
-    nextBtn.disabled = displayedPeriod >= currentRealMonth;
+    nextBtn.disabled = false;
 
     // Disable "Previous" if displaying the earliest month with data (or some limit)
     prevBtn.disabled = !!earliestDataMonth && displayedPeriod <= earliestDataMonth;
@@ -1523,6 +1525,8 @@ function calculateCategorySpendingJS(period, categoryName, transactions) {
 
 // --- Main Budget View Calculation Function ---
 
+// --- Main Budget View Calculation Function ---
+
 /**
  * Calculates the data needed for the budget view table for a specific period.
  * @param {string} period The target period (YYYY-MM).
@@ -1536,10 +1540,11 @@ function calculateBudgetViewData(period, categories = [], budgetPeriodsData = {}
     const budgetRows = [];
     let totalBudgeted = 0.0;
     let totalSpent = 0.0; // Activity total
-    let totalAvailable = 0.0; // Running total available
+    // Total available is calculated at the end
 
     // Exclude internal/special categories and sort
     let displayCategories = categories.filter(c => c !== UNKNOWN_INCOME_SOURCE);
+    // Don't filter out archived categories *yet*
     displayCategories.sort();
     // Ensure Uncategorized is last if present
     if (displayCategories.includes(UNCATEGORIZED)) {
@@ -1559,17 +1564,13 @@ function calculateBudgetViewData(period, categories = [], budgetPeriodsData = {}
         const isArchived = group === ARCHIVED_GROUP_NAME;
         const isSavingsGoal = group === SAVINGS_GROUP_NAME;
 
-        // *** Skip Archived Categories *** (Simplified: Always skip for now)
-        if (isArchived) {
-            console.log(`Skipping archived category: ${cat}`);
-            return; // continue to next category
-        }
-
+        // Skip income categories from budget view
         if (group === 'Income') {
             console.log(`Skipping income category from budget view: ${cat}`);
             return; // Continue to the next category in the loop
         }
 
+        // *** Calculate values FIRST, even for archived ***
         const budgeted = periodBudget[cat] || 0.0;
         const spent = calculateCategorySpendingJS(period, cat, transactions);
 
@@ -1582,27 +1583,38 @@ function calculateBudgetViewData(period, categories = [], budgetPeriodsData = {}
 
         const available = prevAvailable + budgeted - spent;
 
+        // Skip ONLY if archived AND has zero budget, zero activity, AND zero carry-over
+        const tolerance = 0.005;
+        if (isArchived &&
+            Math.abs(budgeted) < tolerance &&
+            Math.abs(spent) < tolerance &&
+            Math.abs(prevAvailable) < tolerance)
+        {
+            console.log(`Skipping fully zero archived category: ${cat}`);
+            return; // Continue to next category
+        }
+
+        // *** If not skipped, add to rows ***
         budgetRows.push({
             name: cat,
-            group: group, 
+            group: group,
             prev_avail: prevAvailable,
             budgeted: budgeted,
             spent: spent, // This is 'Activity'
             available: available,
-            is_savings_goal: isSavingsGoal
-            // is_archived: isArchived // We filter out archived above
+            is_savings_goal: isSavingsGoal,
+            is_archived: isArchived // Pass the archived status to the renderer
         });
 
-        // Accumulate totals (only for non-archived rows)
+        // Accumulate totals (only for rows added)
         totalBudgeted += budgeted;
         totalSpent += spent;
         // Total available is calculated cumulatively at the end from totals
     });
 
-    totalAvailable = (budgetRows.reduce((sum, row) => sum + row.prev_avail, 0)) + totalBudgeted - totalSpent;
-    // Alt check: Sum of individual 'available' amounts should match:
-    // const sumAvailable = budgetRows.reduce((sum, row) => sum + row.available, 0);
-    // console.log("Check Total Available:", totalAvailable, "vs Sum:", sumAvailable);
+    // Calculate overall total available based on the rows included
+    const totalPrevAvailable = budgetRows.reduce((sum, row) => sum + row.prev_avail, 0);
+    const totalAvailable = totalPrevAvailable + totalBudgeted - totalSpent;
 
     return {
         rows: budgetRows,
@@ -1613,7 +1625,6 @@ function calculateBudgetViewData(period, categories = [], budgetPeriodsData = {}
         }
     };
 }
-
 // --- Budget Table Rendering Function ---
 
 /**
@@ -1624,9 +1635,9 @@ function calculateBudgetViewData(period, categories = [], budgetPeriodsData = {}
  * @param {string} period The period being displayed (YYYY-MM).
  * @param {string} titleSuffix Optional suffix for the title (no longer used).
  */
-function renderBudgetTable(budgetRows, totals, period, titleSuffix = "") { 
+function renderBudgetTable(budgetRows, totals, period, titleSuffix = "") {
     if (budgetTbody) budgetTbody.innerHTML = '';
-    if (budgetViewMonthSpan) budgetViewMonthSpan.textContent = (period || '--'); 
+    if (budgetViewMonthSpan) budgetViewMonthSpan.textContent = (period || '--');
 
     if (totalBudgetedValueTd) totalBudgetedValueTd.textContent = '--';
     if (totalSpentValueTd) totalSpentValueTd.textContent = '--';
@@ -1650,11 +1661,22 @@ function renderBudgetTable(budgetRows, totals, period, titleSuffix = "") {
     });
 
     const sortedGroupNames = Object.keys(rowsByGroup).sort((a, b) => {
-        const groupOrder = {'Income': 1,'Bills': 2,'Expenses': 3,'Savings Goals': 10,'Archived': 11,'Unassigned': 99 };
+        // Prioritize specific groups, then sort alphabetically
+        // Added "Archived" to sorting logic if needed, placing it last among visible groups
+        const groupOrder = {
+            'Income': 1, // Should be filtered out before rendering rows, but included for robustness
+            'Bills': 2,
+            'Expenses': 3,
+            'Savings Goals': 10,
+            'Archived': 11, // Place archived after Savings
+            'Unassigned': 99
+        };
+        // Default order for groups not explicitly listed (assign 5)
         const orderA = groupOrder[a] !== undefined ? groupOrder[a] : 5;
         const orderB = groupOrder[b] !== undefined ? groupOrder[b] : 5;
+
         if (orderA !== orderB) return orderA - orderB;
-        return a.localeCompare(b);
+        return a.localeCompare(b); // Alphabetical fallback
     });
 
     sortedGroupNames.forEach(groupName => {
@@ -1670,7 +1692,9 @@ function renderBudgetTable(budgetRows, totals, period, titleSuffix = "") {
             const tr = budgetTbody.insertRow();
             tr.dataset.category = row.name;
 
+            // --- APPLY STYLING FOR SAVINGS AND ARCHIVED ---
             if (row.is_savings_goal) tr.classList.add('savings-goal-row');
+            if (row.is_archived) tr.classList.add('archived-category-row'); // Apply class if archived
 
             const cellCat = tr.insertCell(); cellCat.textContent = row.name;
 
@@ -1684,8 +1708,13 @@ function renderBudgetTable(budgetRows, totals, period, titleSuffix = "") {
             cellBudgeted.className = `currency ${getCurrencyClass(row.budgeted, true)}`;
             cellBudgeted.style.textAlign = 'right';
 
-            cellBudgeted.classList.add('editable-budget');
-            cellBudgeted.title = "Click to edit budget";
+            // Only make Budgeted cell editable if it's NOT an archived category
+            if (!row.is_archived) {
+                cellBudgeted.classList.add('editable-budget');
+                cellBudgeted.title = "Click to edit budget";
+            } else {
+                cellBudgeted.style.cursor = 'default'; // Indicate non-editable for archived
+            }
 
             const cellSpent = tr.insertCell();
             cellSpent.textContent = formatCurrency(row.spent);
@@ -1694,16 +1723,137 @@ function renderBudgetTable(budgetRows, totals, period, titleSuffix = "") {
 
             const cellAvailable = tr.insertCell();
             cellAvailable.textContent = formatCurrency(row.available);
-            cellAvailable.className = `currency ${getCurrencyClass(row.available)}`;
-            cellAvailable.style.textAlign = 'right';
             // Determine base classes first
             let availableClasses = `currency ${getCurrencyClass(row.available)}`;
-            // Add 'overspent-available' class if the available amount is negative with a small tolerance for tiny rounding errors
+            // Add 'overspent-available' class if the available amount is negative
             const overspentThreshold = -0.005;
             if (row.available < overspentThreshold) {
-                availableClasses += ' overspent-available'; 
+                availableClasses += ' overspent-available';
             }
-            cellAvailable.className = availableClasses; 
+            cellAvailable.className = availableClasses;
+            cellAvailable.style.textAlign = 'right';
+        });
+    });
+    // Populate totals
+    if (totalBudgetedValueTd) {
+        totalBudgetedValueTd.textContent = formatCurrency(totals.budgeted);
+        totalBudgetedValueTd.className = `currency ${getCurrencyClass(totals.budgeted, true)}`;
+    }
+    if (totalSpentValueTd) {
+        totalSpentValueTd.textContent = formatCurrency(totals.spent);
+         totalSpentValueTd.className = `currency ${totals.spent > 0 ? 'negative-currency' : (totals.spent < 0 ? 'positive-currency' : 'zero-currency')}`;
+    }
+    if (totalAvailableValueTd) {
+        totalAvailableValueTd.textContent = formatCurrency(totals.available);
+        totalAvailableValueTd.className = `currency ${getCurrencyClass(totals.available)}`;
+    }
+
+    updateBudgetTableTotals();
+}/**
+ * Renders the calculated budget data into the HTML table.
+ * ADDS data-category to rows and editable-budget class to budgeted cells.
+ * @param {Array<object>} budgetRows Array of row data objects.
+ * @param {{budgeted: number, spent: number, available: number}} totals Calculated totals.
+ * @param {string} period The period being displayed (YYYY-MM).
+ * @param {string} titleSuffix Optional suffix for the title (no longer used).
+ */
+function renderBudgetTable(budgetRows, totals, period, titleSuffix = "") {
+    if (budgetTbody) budgetTbody.innerHTML = '';
+    if (budgetViewMonthSpan) budgetViewMonthSpan.textContent = (period || '--');
+
+    if (totalBudgetedValueTd) totalBudgetedValueTd.textContent = '--';
+    if (totalSpentValueTd) totalSpentValueTd.textContent = '--';
+    if (totalAvailableValueTd) totalAvailableValueTd.textContent = '--';
+    if (budgetNoDataMsg) budgetNoDataMsg.classList.add('hidden');
+
+    if (!budgetTbody || !budgetRows || budgetRows.length === 0) {
+         if (budgetNoDataMsg) budgetNoDataMsg.classList.remove('hidden');
+        console.warn("No budget rows to render for period:", period);
+        if (totalBudgetedValueTd) totalBudgetedValueTd.textContent = formatCurrency(0);
+        if (totalSpentValueTd) totalSpentValueTd.textContent = formatCurrency(0);
+        if (totalAvailableValueTd) totalAvailableValueTd.textContent = formatCurrency(0);
+        return;
+    }
+
+    const rowsByGroup = {};
+    budgetRows.forEach(row => {
+        const group = row.group || 'Unassigned';
+        if (!rowsByGroup[group]) rowsByGroup[group] = [];
+        rowsByGroup[group].push(row);
+    });
+
+    const sortedGroupNames = Object.keys(rowsByGroup).sort((a, b) => {
+        // Prioritize specific groups, then sort alphabetically
+        // Added "Archived" to sorting logic if needed, placing it last among visible groups
+        const groupOrder = {
+            'Income': 1, // Should be filtered out before rendering rows, but included for robustness
+            'Bills': 2,
+            'Expenses': 3,
+            'Savings Goals': 10,
+            'Archived': 11, // Place archived after Savings
+            'Unassigned': 99
+        };
+        // Default order for groups not explicitly listed (assign 5)
+        const orderA = groupOrder[a] !== undefined ? groupOrder[a] : 5;
+        const orderB = groupOrder[b] !== undefined ? groupOrder[b] : 5;
+
+        if (orderA !== orderB) return orderA - orderB;
+        return a.localeCompare(b); // Alphabetical fallback
+    });
+
+    sortedGroupNames.forEach(groupName => {
+        const headerRow = budgetTbody.insertRow();
+        headerRow.className = 'budget-group-header';
+        const headerCell = headerRow.insertCell();
+        headerCell.colSpan = 5; // Adjust colspan if columns changed
+        headerCell.textContent = groupName;
+
+        const groupRows = rowsByGroup[groupName].sort((a, b) => a.name.localeCompare(b.name));
+
+        groupRows.forEach(row => {
+            const tr = budgetTbody.insertRow();
+            tr.dataset.category = row.name;
+
+            // --- APPLY STYLING FOR SAVINGS AND ARCHIVED ---
+            if (row.is_savings_goal) tr.classList.add('savings-goal-row');
+            if (row.is_archived) tr.classList.add('archived-category-row'); // Apply class if archived
+
+            const cellCat = tr.insertCell(); cellCat.textContent = row.name;
+
+            const cellPrevAvail = tr.insertCell();
+            cellPrevAvail.textContent = formatCurrency(row.prev_avail);
+            cellPrevAvail.className = `currency ${getCurrencyClass(row.prev_avail)}`;
+            cellPrevAvail.style.textAlign = 'right';
+
+            const cellBudgeted = tr.insertCell();
+            cellBudgeted.textContent = formatCurrency(row.budgeted);
+            cellBudgeted.className = `currency ${getCurrencyClass(row.budgeted, true)}`;
+            cellBudgeted.style.textAlign = 'right';
+
+            // Only make Budgeted cell editable if it's NOT an archived category
+            if (!row.is_archived) {
+                cellBudgeted.classList.add('editable-budget');
+                cellBudgeted.title = "Click to edit budget";
+            } else {
+                cellBudgeted.style.cursor = 'default'; // Indicate non-editable for archived
+            }
+
+            const cellSpent = tr.insertCell();
+            cellSpent.textContent = formatCurrency(row.spent);
+            cellSpent.className = `currency ${row.spent > 0 ? 'negative-currency' : (row.spent < 0 ? 'positive-currency' : 'zero-currency')}`;
+            cellSpent.style.textAlign = 'right';
+
+            const cellAvailable = tr.insertCell();
+            cellAvailable.textContent = formatCurrency(row.available);
+            // Determine base classes first
+            let availableClasses = `currency ${getCurrencyClass(row.available)}`;
+            // Add 'overspent-available' class if the available amount is negative
+            const overspentThreshold = -0.005;
+            if (row.available < overspentThreshold) {
+                availableClasses += ' overspent-available';
+            }
+            cellAvailable.className = availableClasses;
+            cellAvailable.style.textAlign = 'right';
         });
     });
     // Populate totals
