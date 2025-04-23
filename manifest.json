@@ -1,7 +1,7 @@
 {
     "name": "Zero Budget PWA",
     "short_name": "Budget",
-    "description": "A simple app to Zero Budget.",
+    "description": "A simple app to zero Budget.",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#ffffff",

@@ -63,7 +63,6 @@ let chartMonthDisplaySpan;
 let chartNoDataMsg;
 let spendingPieChartInstance = null; // To destroy previous chart before rendering new one
 
-// NEW Chart Refs
 let showPieChartBtn;
 let showBarChartBtn;
 let spendingPieChartArea;
@@ -132,14 +131,14 @@ const ARCHIVED_GROUP_NAME = "Archived";
 
 // --- Global Variables ---
 let currentBudgetMonth = null; // Stores "YYYY-MM" for the budget view
-let currentChartMonth = null;  // Stores "YYYY-MM" for the chart view
-let earliestDataMonth = null; // Stores "YYYY-MM" of the first transaction
-let latestDataMonth = null;   // Stores "YYYY-MM" of the last transaction (or current month)
+let currentChartMonth = null;  
+let earliestDataMonth = null; 
+let latestDataMonth = null;   
 let activeBudgetInput = null;
 let currentYearlySummaryYear = null; // Stores integer year (e.g., 2024)
-let earliestDataYear = null; // Stores earliest year from data
-let latestDataYear = null; // Stores latest year from data
-let activeChartType = 'pie'; // 'pie' or 'bar' - Track currently selected chart
+let earliestDataYear = null; 
+let latestDataYear = null; 
+let activeChartType = 'pie'; 
 
 /**
  * Initializes the IndexedDB database.
@@ -288,7 +287,7 @@ async function initializeApp() {
     showPieChartBtn = document.getElementById('show-pie-chart-btn');
     showBarChartBtn = document.getElementById('show-bar-chart-btn');
     spendingPieChartArea = document.getElementById('spending-pie-chart-area');
-    incomeExpenseBarChartArea = document.getElementById('income-expense-bar-chart-area'); // Assigned here!
+    incomeExpenseBarChartArea = document.getElementById('income-expense-bar-chart-area'); 
     incomeExpenseBarChartCanvas = document.getElementById('incomeExpenseBarChart');
     trendChartNoDataMsg = document.getElementById('trend-chart-no-data');
 
@@ -296,8 +295,8 @@ async function initializeApp() {
     menuCloseButton = document.getElementById('menu-close');
     sideMenu = document.getElementById('side-menu');
     overlay = document.getElementById('overlay');
-    navLinks = document.querySelectorAll('.nav-link'); // querySelectorAll is fine here
-    mainSections = document.querySelectorAll('.main-section'); // querySelectorAll is fine here
+    navLinks = document.querySelectorAll('.nav-link'); 
+    mainSections = document.querySelectorAll('.main-section');
 
     manageAccountsSection = document.getElementById('manage-accounts-section');
     manageAccountsContent = document.getElementById('manage-accounts-content');
@@ -346,7 +345,7 @@ async function initializeApp() {
     await loadDataFromDB();
 
     // Default to dashboard after load
-    showSection('dashboard-summary'); // Use helper to show initial section
+    showSection('dashboard-summary'); 
 
     if(txTypeSelect) updateAddFormForTxType(txTypeSelect.value);
 
@@ -365,7 +364,7 @@ function setupChartToggleButtons() {
 }
 // --- Function to switch between chart views ---
 function switchChartView(chartType) {
-    if (activeChartType === chartType) return; // No change needed
+    if (activeChartType === chartType) return; 
 
     activeChartType = chartType;
 
@@ -379,16 +378,13 @@ function switchChartView(chartType) {
     spendingPieChartArea?.classList.toggle('hidden', !isPieActive);
     incomeExpenseBarChartArea?.classList.toggle('hidden', isPieActive);
 
-    // Optional: Re-render or ensure data is fresh for the activated chart
-    // Since data is calculated when navigating to the section, just switching visibility might be enough.
-    // If data could become stale, you might call updateChartView() or updateTrendChartView() here.
     console.log(`Switched chart view to: ${chartType}`);
 
     // Ensure the correct chart is rendered if it wasn't already
     if (isPieActive) {
          if (currentChartMonth) updateChartView(currentChartMonth);
     } else {
-         updateTrendChartView(); // Recalculate/render trend chart
+         updateTrendChartView(); 
     }
 }
 
@@ -396,7 +392,6 @@ function switchChartView(chartType) {
 // --- Setup Budget Editing Listener ---
 function setupBudgetEditingListener() {
     if (budgetTbody) {
-        // Keep the listener attachment logic
         budgetTbody.addEventListener('click', handleBudgetCellClick);
         console.log("Budget editing listener attached.");
     } else {
@@ -586,7 +581,6 @@ function handleNavLinkClick(event) {
             fallbackSection.classList.remove('hidden');
             setActiveNavLink('dashboard-summary'); // Activate dashboard link
         }
-        // Remove active state from the link that failed
          event.currentTarget.classList.remove('active-link');
          event.currentTarget.removeAttribute('aria-current');
     }
@@ -718,9 +712,6 @@ function populateCategoryGroupDropdown(groupsData = {}, categories = []) {
             newCategoryGroupSelect.add(new Option(groupName, groupName));
         }
     });
-
-    // Optionally add "Create New..." later
-    // newCategoryGroupSelect.add(new Option('Create New Group...', 'CREATE_NEW'));
 }
 
 /**
@@ -2049,7 +2040,6 @@ function calculateYearlySummaryData(year, transactions = [], categories = [], gr
 
         // Skip rows with zero total and zero monthly values unless needed
         if (rowData.total === 0 && rowData.monthly.every(m => m === 0)) {
-             // console.log(`Skipping zero-value category: ${cat}`); // Optional log
              return;
         }
 
@@ -2197,8 +2187,6 @@ function renderYearlySummaryTable(year, summaryData) {
         cell.colSpan = 14; // Span all columns
         cell.textContent = 'Expenses';
     } else if (summaryData.expenseRows.length > 0) {
-         // Optional: Add header if ONLY expenses exist?
-        // const sepRow = yearlySummaryTbody.insertRow(); /* ... */ cell.textContent = 'Expenses';
     }
 
 
@@ -2365,7 +2353,6 @@ function calculateSpendingBreakdown(period, transactions = [], groupsData = {}) 
         return null; // No data for the chart
     }
 
-    // Optional: Group small slices into "Other"
     const threshold = 0.03; // Example: Group slices less than 3% of total
     const totalSpending = spendingEntries.reduce((sum, [, amount]) => sum + amount, 0);
     let otherAmount = 0;
@@ -2527,9 +2514,8 @@ function renderSpendingChart(chartData) {
                         }
                     }
                 },
-                title: { // Optional chart title within the canvas area
+                title: { 
                     display: false, // Already have h2 above
-                    // text: `Spending Breakdown for ${latestMonth}` // Use variable if needed
                 }
             }
         }
@@ -2566,12 +2552,8 @@ function renderIncomeExpenseBarChart(chartData) {
     if (!chartData) {
         console.log("No data to render for trend chart.");
         noDataMsg.classList.remove('hidden'); // Show the 'no data' message
-        // Optionally hide the canvas container too if you want it completely gone
-        // canvas.style.display = 'none';
         return;
     } else {
-        // Ensure canvas is visible if we have data
-        // canvas.style.display = 'block';
     }
 
 
@@ -2604,7 +2586,6 @@ function renderIncomeExpenseBarChart(chartData) {
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        // Optional: Format Y-axis ticks as currency
                         callback: function(value, index, values) {
                             return formatCurrency(value); // Use your existing formatter
                         }
@@ -2734,7 +2715,6 @@ function updateStatusMessage(element, message, type, autoHideDelay = 4000) {
     if (existingTimeoutId) {
         clearTimeout(parseInt(existingTimeoutId));
         delete element.dataset.hideTimeoutId;
-        // console.log(`Cleared existing timeout ${existingTimeoutId} for element`, element.id);
     }
 
     // --- Set the new message and class ---
@@ -2750,18 +2730,15 @@ function updateStatusMessage(element, message, type, autoHideDelay = 4000) {
             // Double-check if the message is still the one we set before clearing
             if (element.textContent === message) {
                 element.textContent = ''; // Clear the message
-                element.className = ''; // Optionally reset class
+                element.className = ''; 
                 delete element.dataset.hideTimeoutId; // Clean up dataset
-                // console.log(`Auto-hid success message for element`, element.id);
             } else {
-                // console.log(`Timeout expired but message changed for element`, element.id);
                  delete element.dataset.hideTimeoutId; // Still clean up dataset
             }
         }, autoHideDelay);
 
         // Store the new timeout ID on the element's dataset
         element.dataset.hideTimeoutId = newTimeoutId;
-        // console.log(`Set new timeout ${newTimeoutId} for element`, element.id);
     }
 }
 
@@ -3563,7 +3540,7 @@ async function handleExportStandaloneData() {
          const url = URL.createObjectURL(blob);
          const a = document.createElement('a');
          a.href = url;
-         a.download = `budget_data_standalone_${new Date().toISOString().slice(0, 10)}.json`;
+         a.download = `budget_data_${new Date().toISOString().slice(0, 10)}.json`;
          document.body.appendChild(a); a.click(); document.body.removeChild(a);
          URL.revokeObjectURL(url);
 
@@ -3751,7 +3728,6 @@ function deleteTransactionStandalone(transactionId) {
 function handleStandaloneImport() {
     if (!importStandaloneFileInput || !importStandaloneStatusDiv || !importStandaloneButton) {
          console.error("Missing required elements for standalone import.");
-         // Optionally provide feedback to the user if status div exists
          if (importStandaloneStatusDiv) {
             updateStatusMessage(importStandaloneStatusDiv, "Error: Import UI elements not found.", "error");
          }
@@ -3820,9 +3796,6 @@ function handleStandaloneImport() {
              // 4. Reset import form
              importStandaloneFileInput.value = null;
              importStandaloneButton.disabled = true; // Should be disabled as file input is now empty
-             // Optional: Clear success message after a delay
-             // setTimeout(() => { if(importStandaloneStatusDiv.textContent.includes("successful")) importStandaloneStatusDiv.textContent = ''; }, 5000);
-
         } catch (error) {
              console.error("Import process failed:", error);
              // Provide more specific error from writeImportedDataToDB if possible
@@ -4298,7 +4271,6 @@ async function handleAddTransaction(event) {
             if (!txCategorySelect.value) { // Category is required for non-transfers
                 validationPassed = false; validationError = "Please select a category.";
             }
-            // Payee is optional, default will be assigned later if empty
         }
     }
 
