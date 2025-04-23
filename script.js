@@ -2985,87 +2985,204 @@ async function handleDeleteTransactionClick(event) {
 }
 
 // --- IndexedDB Interaction Functions ---
+/**
+ * Checks if the core budget data structures appear empty.
+ * @param {object} data 
+ * @returns {boolean} 
+ */
+function isDataEmpty(data) {
+    if (!data) return true;
+    const accountsEmpty = !data.accounts || Object.keys(data.accounts).length === 0;
+    const categoriesEmpty = !data.categories || data.categories.length === 0;
+    return accountsEmpty && categoriesEmpty;
+}
+/**
+ * Adds default account and categories to an empty database.
+ * @returns {Promise<void>}
+ */
+function seedInitialData() {
+    console.log("Database appears empty. Seeding initial data...");
+    return new Promise(async (resolve, reject) => {
+        if (!db) return reject("Database not initialized for seeding.");
+
+        const storeNames = [
+            ACCOUNT_STORE_NAME, CATEGORY_STORE_NAME, GROUP_STORE_NAME, METADATA_STORE_NAME
+        ];
+        const transaction = db.transaction(storeNames, 'readwrite');
+        const stores = {
+            acc: transaction.objectStore(ACCOUNT_STORE_NAME),
+            cat: transaction.objectStore(CATEGORY_STORE_NAME),
+            grp: transaction.objectStore(GROUP_STORE_NAME),
+            meta: transaction.objectStore(METADATA_STORE_NAME)
+        };
+
+        let errorOccurred = false;
+        let writeErrors = [];
+
+        try {
+            // --- Seed Data Definitions ---
+            const defaultAccount = { name: 'Cash', balance: 0.0, type: 'cash' };
+            const defaultCategories = [
+                { name: 'Salary', group: 'Income' },
+                { name: 'Groceries', group: 'Expenses' },
+                { name: 'Dining Out', group: 'Expenses' },
+                { name: 'Shopping', group: 'Expenses' },
+                { name: 'Rent/Mortgage', group: 'Bills' },
+                { name: 'Subscriptions', group: 'Bills' },
+                { name: 'Utilities', group: 'Bills' },
+                { name: 'Transport', group: 'Expenses' },
+                { name: UNCATEGORIZED, group: 'Expenses' } // Ensure Uncategorized exists
+            ];
+            const defaultMetadata = { key: 'appData', ready_to_assign: 0.0 }; // RTA starts at 0
+
+            // 1. Write Account
+            console.log("Seeding Account:", defaultAccount.name);
+            const accReq = stores.acc.put(defaultAccount);
+            accReq.onerror = (e) => { errorOccurred = true; writeErrors.push(`Account: ${e.target.error}`); console.error("Seed Acc Error:", e.target.error); };
+
+            // 2. Write Categories & Groups
+            for (const catData of defaultCategories) {
+                console.log(`Seeding Category: ${catData.name}, Group: ${catData.group}`);
+                // Write Category Name
+                const catReq = stores.cat.put({ name: catData.name });
+                catReq.onerror = (e) => { errorOccurred = true; writeErrors.push(`Category '${catData.name}': ${e.target.error}`); console.error("Seed Cat Error:", e.target.error);};
+
+                // Write Group Mapping
+                const grpReq = stores.grp.put({ categoryName: catData.name, groupName: catData.group });
+                grpReq.onerror = (e) => { errorOccurred = true; writeErrors.push(`GroupMap '${catData.name}': ${e.target.error}`); console.error("Seed Grp Error:", e.target.error);};
+            }
+
+            // 3. Write Metadata (RTA)
+            console.log("Seeding Metadata (RTA=0)");
+            const metaReq = stores.meta.put(defaultMetadata);
+            metaReq.onerror = (e) => { errorOccurred = true; writeErrors.push(`Metadata: ${e.target.error}`); console.error("Seed Meta Error:", e.target.error);};
+
+        } catch (seedError) {
+            console.error("Error during seed data preparation:", seedError);
+            errorOccurred = true;
+            writeErrors.push(`Preparation error: ${seedError.message}`);
+            transaction.abort(); // Abort if preparation fails
+            return reject(`Error preparing seed data: ${seedError.message}`);
+        }
+
+        // Transaction completion handling
+        transaction.oncomplete = () => {
+            if (errorOccurred) {
+                console.error("Seed data transaction completed, but errors occurred:", writeErrors);
+                reject(`Seeding completed with errors: ${writeErrors.join("; ")}`);
+            } else {
+                console.log("Initial data seeded successfully.");
+                resolve();
+            }
+        };
+
+        transaction.onerror = (event) => {
+            console.error("Seed data transaction failed:", event.target.error);
+            reject(`Database transaction failed during seeding: ${event.target.error}`);
+        };
+    });
+}
 
 /** Loads all budget data from IndexedDB stores. */
 async function loadDataFromDB() {
-   console.log("Attempting to load data from IndexedDB...");
-   if (!db) {
-       console.error("DB not available for loading.");
-       updateStatus("Error: Cannot load data, database unavailable.", "error");
-       processBudgetData(null, 'standalone'); // Process null to show 'no data' state
-       return;
-   }
-
-   const transaction = db.transaction([
-       TX_STORE_NAME, ACCOUNT_STORE_NAME, CATEGORY_STORE_NAME,
-       GROUP_STORE_NAME, BUDGET_PERIOD_STORE_NAME, METADATA_STORE_NAME
-   ], 'readonly');
-
-   const stores = {
-       tx: transaction.objectStore(TX_STORE_NAME),
-       acc: transaction.objectStore(ACCOUNT_STORE_NAME),
-       cat: transaction.objectStore(CATEGORY_STORE_NAME),
-       grp: transaction.objectStore(GROUP_STORE_NAME),
-       bp: transaction.objectStore(BUDGET_PERIOD_STORE_NAME),
-       meta: transaction.objectStore(METADATA_STORE_NAME),
-   };
-
-   const requests = {
-       transactions: stores.tx.getAll(),
-       accounts: stores.acc.getAll(),
-       categories: stores.cat.getAll(),
-       groups: stores.grp.getAll(),
-       periods: stores.bp.getAll(),
-       metadata: stores.meta.get('appData') // Assuming 'appData' is the key for RTA etc.
-   };
-
-   return new Promise((resolve, reject) => {
-       let results = {};
-       let completed = 0;
-       const totalRequests = Object.keys(requests).length;
-
-       Object.entries(requests).forEach(([key, req]) => {
-           req.onsuccess = (event) => {
-               results[key] = event.target.result;
-               completed++;
-               if (completed === totalRequests) {
-                   // Process results into the expected budget data structure
-                   const loadedData = {
-                       transactions: results.transactions || [],
-                       accounts: (results.accounts || []).reduce((acc, item) => { acc[item.name] = item.balance; return acc; }, {}),
-                       categories: (results.categories || []).map(item => item.name),
-                       category_groups: (results.groups || []).reduce((acc, item) => { acc[item.categoryName] = item.groupName; return acc; }, {}),
-                       budget_periods: (results.periods || []).reduce((acc, item) => { acc[item.period] = item.budget; return acc; }, {}),
-                       ready_to_assign: results.metadata?.ready_to_assign || 0.0
-                   };
-                   console.log("Successfully loaded data from IndexedDB:", loadedData);
-                   processBudgetData(loadedData, 'standalone'); // Process the loaded data
-                   resolve(loadedData);
-               }
-           };
-           req.onerror = (event) => {
-               console.error(`Error loading from ${key} store:`, event.target.error);
-               reject(`Error loading data from ${key} store.`);
-               transaction.abort(); // Abort the whole transaction on any error
-           };
-       });
-
-        transaction.oncomplete = () => {
-            console.log("Read transaction from IndexedDB complete.");
-            // Check if ANY data was loaded. If not, maybe show first-time message.
-            if (Object.values(results).every(r => !r || (Array.isArray(r) && r.length === 0))) {
-                console.log("No data found in IndexedDB ");
-                updateStatusMessage("No data found. Add entries or import data.", "info");
-                processBudgetData(null, 'standalone'); // Show empty state
+    console.log("Attempting to load data from IndexedDB...");
+    if (!db) {
+        console.error("DB not available for loading.");
+        updateStatus("Error: Cannot load data, database unavailable.", "error");
+        processBudgetData(null); // Process null to show 'no data' state
+        return; 
+    }
+ 
+    const transaction = db.transaction([
+        TX_STORE_NAME, ACCOUNT_STORE_NAME, CATEGORY_STORE_NAME,
+        GROUP_STORE_NAME, BUDGET_PERIOD_STORE_NAME, METADATA_STORE_NAME
+    ], 'readonly');
+ 
+    const stores = {
+        tx: transaction.objectStore(TX_STORE_NAME),
+        acc: transaction.objectStore(ACCOUNT_STORE_NAME),
+        cat: transaction.objectStore(CATEGORY_STORE_NAME),
+        grp: transaction.objectStore(GROUP_STORE_NAME),
+        bp: transaction.objectStore(BUDGET_PERIOD_STORE_NAME),
+        meta: transaction.objectStore(METADATA_STORE_NAME),
+    };
+ 
+    const requests = {
+        transactions: stores.tx.getAll(),
+        accounts: stores.acc.getAll(),
+        categories: stores.cat.getAll(),
+        groups: stores.grp.getAll(),
+        periods: stores.bp.getAll(),
+        metadata: stores.meta.get('appData') 
+    };
+ 
+    try {
+        const results = await new Promise((resolve, reject) => {
+            let res = {};
+            let completed = 0;
+            const totalRequests = Object.keys(requests).length;
+ 
+            Object.entries(requests).forEach(([key, req]) => {
+                req.onsuccess = (event) => {
+                    res[key] = event.target.result;
+                    completed++;
+                    if (completed === totalRequests) {
+                        resolve(res); // Resolve with the results object
+                    }
+                };
+                req.onerror = (event) => {
+                    console.error(`Error loading from ${key} store:`, event.target.error);
+                     completed++; // Still count as completed to avoid hanging
+                     if (completed === totalRequests) {
+                         resolve(res); // Resolve even if some parts failed
+                     }
+                };
+            });
+ 
+             transaction.oncomplete = () => {
+                 console.log("Read transaction from IndexedDB complete.");
+             };
+             transaction.onerror = (event) => {
+                 // This might fire if the transaction is aborted due to an error above
+                 console.error("Read transaction error:", event.target.error);
+                 // Reject the promise if the transaction itself fails fundamentally
+                 reject(new Error(`Database read transaction failed: ${event.target.error}`));
+             };
+        }); // End Promise
+ 
+        const loadedData = {
+            transactions: results.transactions || [],
+            accounts: (results.accounts || []).reduce((acc, item) => { acc[item.name] = item.balance; return acc; }, {}),
+            categories: (results.categories || []).map(item => item.name),
+            category_groups: (results.groups || []).reduce((acc, item) => { acc[item.categoryName] = item.groupName; return acc; }, {}),
+            budget_periods: (results.periods || []).reduce((acc, item) => { acc[item.period] = item.budget; return acc; }, {}),
+            ready_to_assign: results.metadata?.ready_to_assign || 0.0
+        };
+        console.log("Loaded data from IndexedDB:", loadedData);
+ 
+        if (isDataEmpty(loadedData)) {
+            try {
+                await seedInitialData();
+                // IMPORTANT: Reload data AFTER seeding is complete
+                console.log("Seeding complete, reloading data...");
+                await loadDataFromDB(); // Recursive call to reload the newly seeded data
+                return; // Exit this execution context as the recursive call handles the rest
+            } catch (seedError) {
+                console.error("Failed to seed initial data:", seedError);
+                updateStatus("Error: Could not set up initial data.", "error");
+                processBudgetData(loadedData);
             }
-        };
-        transaction.onerror = (event) => {
-            console.error("Read transaction error:", event.target.error);
-             processBudgetData(null, 'standalone'); // Show empty state on error
-            reject("Error reading data from database.");
-        };
-   });
-}
+        } else {
+            // Process the loaded data if it wasn't empty
+            processBudgetData(loadedData);
+        }
+ 
+    } catch (loadError) {
+        console.error("Failed to load data from IndexedDB:", loadError);
+        updateStatus(`Error loading data: ${loadError.message}`, "error");
+        processBudgetData(null); // Show empty state on significant loading error
+    }
+ } 
 
 /** Saves a transaction (expense, income, refund, or transfer) and updates state */
 async function saveTransactionStandalone(transaction) {
