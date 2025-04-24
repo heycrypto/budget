@@ -36,22 +36,6 @@
     </nav>
     <div id="overlay" class="overlay"></div>
     <main class="container">
-        <section id="welcome-guide" class="main-section hidden card" style="background-color: #e9f5ff; border-color: #b3d7ff;"> <!-- Initially hidden, styled like a card -->
-            <h2>Welcome to Zero Budget! 👋</h2>
-            <p>Ready to take control of your finances? Here's how to get started:</p>
-            <ol style="margin-left: 20px; margin-bottom: 20px;">
-                <li><strong>Add Your Accounts:</strong> List checking, savings, credit cards, and cash accounts with their current balances.</li>
-                <li><strong>Define Your Categories:</strong> Set up categories for your spending (like Groceries, Rent, Dining Out) and income sources.</li>
-                <li><strong>Start Budgeting:</strong> Once you have income, assign money to your categories in the 'Budget' view.</li>
-                <li><strong>Track Transactions:</strong> Record your spending and income as they happen.</li>
-            </ol>
-            <p>Let's set up your foundation:</p>
-            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                <button id="welcome-go-accounts" class="button button-primary-action" style="flex-grow: 1;">Go to Accounts</button>
-                <button id="welcome-go-categories" class="button button-primary-action" style="flex-grow: 1;">Go to Categories</button>
-                <button id="welcome-dismiss" class="button button-secondary" style="flex-basis: 100%; margin-top: 10px;">Cancel</button>
-            </div>
-        </section>
         <section id="manage-accounts-section" class="main-section hidden card">
             <h2>Manage Accounts</h2>
 
@@ -93,68 +77,89 @@
                 </ul>
             </div>
         </section>
-    <section id="manage-categories-section" class="main-section hidden card">
-        <h2>Manage Categories</h2>
+        <section id="manage-categories-section" class="main-section hidden card">
+            <h2>Manage Categories</h2>
 
-        <div id="manage-categories-content"> <!-- Wrapper div -->
-            <p>Add new categories and assign them to groups.</p>
+            <div id="manage-categories-content"> <!-- Wrapper div -->
+                <p>Add new categories and assign them to groups.</p>
 
-            <form id="add-category-form" style="margin-bottom: 30px;">
-                <h3>Add New Category</h3>
-                <div class="filter-grid"> <!-- Reuse grid for layout -->
-                    <div class="form-group">
-                        <label for="new-category-name">Category Name:</label>
-                        <input type="text" id="new-category-name" placeholder="e.g., Groceries, Rent" required>
+                <form id="add-category-form" style="margin-bottom: 30px;">
+                    <h3>Add New Category</h3>
+                    <div class="filter-grid"> <!-- Reuse grid for layout -->
+                        <div class="form-group">
+                            <label for="new-category-name">Category Name:</label>
+                            <input type="text" id="new-category-name" placeholder="e.g., Groceries, Rent" required>
+                     </div>
+                     <div class="form-group">
+                         <label for="new-category-group">Category Group:</label>
+                         <select id="new-category-group" required>
+                             <option value="">-- Select Group --</option>
+                             <!-- Options populated by JS -->
+                             <!-- Consider adding a "Create New Group..." option later -->
+                         </select>
+                     </div>
+                     <div class="form-group">
+                         <button type="submit" class="button button-primary-action">Add Category</button>
+                     </div>
                     </div>
-                    <div class="form-group">
-                        <label for="new-category-group">Category Group:</label>
-                        <select id="new-category-group" required>
-                            <option value="">-- Select Group --</option>
-                            <!-- Options populated by JS -->
-                            <!-- Consider adding a "Create New Group..." option later -->
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <button type="submit" class="button button-primary-action">Add Category</button>
-                    </div>
-                </div>
-                <div id="add-category-status" style="margin-top: 10px;"></div>
-            </form>
+                    <div id="add-category-status" style="margin-top: 10px;"></div>
+                </form>
 
-            <hr style="margin: 20px 0;">
+                <hr style="margin: 20px 0;">
 
-            <h3>Existing Categories by Group</h3>
-            <div id="existing-categories-list">
-                <p>No categories added yet.</p> <!-- Placeholder -->
-            </div>
-        </div>
-    </section>
-
-        <section id="dashboard-summary" class="main-section hidden">
-            <h2>Dashboard <span id="summary-month-display" style="font-size: 0.8em; color: #666;"></span></h2>
-
-            <div class="summary-grid"> 
-                <div id="ready-to-assign" class="summary-box">
-                    <h3>Ready to Assign</h3>
-                    <p id="rta-value" class="summary-value">Loading...</p>
-                </div>
-       
-                <div id="account-balances" class="summary-box">
-                    <h3>Account Balances</h3>
-                    <ul id="balances-list" class="summary-list">
-                        <li>Loading...</li>
-                    </ul>
-                </div>
-       
-                <div id="month-summary" class="summary-box">
-                     <h3>Latest Month Summary</h3>
-                     <p><strong class="summary-label">Month:</strong> <span id="summary-month">--</span></p>
-                     <p><strong class="summary-label">Total Income:</strong> <span id="summary-income">Loading...</span></p>
-                     <p><strong class="summary-label">Net Spending:</strong> <span id="summary-spending">Loading...</span></p>
+                <h3>Existing Categories by Group</h3>
+                <div id="existing-categories-list">
+                    <p>No categories added yet.</p> <!-- Placeholder -->
                 </div>
             </div>
         </section>
 
+        <section id="dashboard-summary" class="main-section hidden">
+            <h2>Dashboard <span id="summary-month-display" style="font-size: 0.8em; color: #666;"></span></h2>
+
+            <!-- Welcome Guide INSIDE Dashboard (Initially Hidden) -->
+            <div id="welcome-guide-dashboard" class="card hidden" style="margin-bottom: 20px; background-color: #eef; border: 1px solid #ccd;"> <!-- Style slightly differently -->
+                <h3>Welcome to Zero Budget! 👋</h3>
+                <p>To get started, add your accounts and spending categories.</p>
+                <ol style="margin-left: 20px; margin-bottom: 15px; font-size: 0.95em;">
+                    <li>Go to 'Accounts' to add your checking, savings, credit cards, etc.</li>
+                    <li>Go to 'Categories' to set up your spending plan (Groceries, Rent...).</li>
+                    <li>Add transactions using 'Add Income/Expense'.</li>
+                </ol>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                    <button id="welcome-dash-go-accounts" class="button button-secondary" style="flex-grow: 1;">Go to Accounts</button>
+                    <button id="welcome-dash-go-categories" class="button button-secondary" style="flex-grow: 1;">Go to Categories</button>
+                    <button id="welcome-dash-dismiss" class="button button-primary-action" style="flex-grow: 1; background-color: #6c757d; border-color: #6c757d;">Got it, Dismiss</button>
+                </div>
+                <div id="welcome-dismiss-status" style="font-size: 0.85em; margin-top: 10px; color: #555;"></div>
+            </div>
+            <!-- End Welcome Guide -->
+
+            <!-- Wrapper for REGULAR Dashboard Content -->
+            <div id="dashboard-content-main">
+                <div class="summary-grid">
+                    <div id="ready-to-assign" class="summary-box">
+                        <h3>Ready to Assign</h3>
+                        <p id="rta-value" class="summary-value">Loading...</p>
+                    </div>
+
+                    <div id="account-balances" class="summary-box">
+                        <h3>Account Balances</h3>
+                        <ul id="balances-list" class="summary-list">
+                            <li>Loading...</li>
+                        </ul>
+                    </div>
+
+                    <div id="month-summary" class="summary-box">
+                        <h3>Latest Month Summary</h3>
+                        <p><strong class="summary-label">Month:</strong> <span id="summary-month">--</span></p>
+                        <p><strong class="summary-label">Total Income:</strong> <span id="summary-income">Loading...</span></p>
+                        <p><strong class="summary-label">Net Spending:</strong> <span id="summary-spending">Loading...</span></p>
+                    </div>
+                </div>
+            </div>
+            <!-- End Wrapper for Regular Content -->
+        </section>
         <section id="charts-section" class="main-section hidden">
             <h2>Charts</h2>
             <!-- Chart Type Selection Buttons -->

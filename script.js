@@ -3,6 +3,12 @@ console.log("Script loaded!");
 
 // --- DOM Element References (Declare with let, assign in initializeApp) ---
 let dashboardSection;
+let dashboardContentMain; 
+let welcomeGuideDashboard; 
+let welcomeDashGoAccountsButton;
+let welcomeDashGoCategoriesButton;
+let welcomeDashDismissButton;
+let welcomeDismissStatusDiv;
 let transactionsSection;
 let balancesList;
 let rtaValueElement;
@@ -119,6 +125,7 @@ let welcomeGuideSection;
 let welcomeGoAccountsButton;
 let welcomeGoCategoriesButton;
 let welcomeDismissButton; 
+let welcomeDismissed = false;
 
 // --- Define Constants ---
 const DB_NAME = 'budgetAppDB';
@@ -236,6 +243,13 @@ async function initializeApp() {
 
     // <<< --- ASSIGN DOM ELEMENTS HERE --- >>>
     dashboardSection = document.getElementById('dashboard-summary');
+    dashboardContentMain = document.getElementById('dashboard-content-main'); // <-- Assign wrapper
+    welcomeGuideDashboard = document.getElementById('welcome-guide-dashboard'); // <-- Assign new guide
+    welcomeDashGoAccountsButton = document.getElementById('welcome-dash-go-accounts');
+    welcomeDashGoCategoriesButton = document.getElementById('welcome-dash-go-categories');
+    welcomeDashDismissButton = document.getElementById('welcome-dash-dismiss');
+    welcomeDismissStatusDiv = document.getElementById('welcome-dismiss-status');
+
     transactionsSection = document.getElementById('transactions-list');
     balancesList = document.getElementById('balances-list');
     rtaValueElement = document.getElementById('rta-value');
@@ -352,8 +366,8 @@ async function initializeApp() {
     setupNavButtonListeners();
     setupBudgetEditingListener();
     setupYearlyNavButtonListeners();
-    setupChartToggleButtons(); // Setup listeners AFTER elements are assigned
-    setupWelcomeGuideListeners();
+    setupChartToggleButtons(); 
+    setupDashboardWelcomeListeners();
 
     await loadDataFromDB();
 
@@ -365,26 +379,94 @@ async function initializeApp() {
     console.log("Application initialization complete.");
 }
 
-/** Sets up event listeners for the welcome guide buttons. */
-function setupWelcomeGuideListeners() {
-    if (welcomeGoAccountsButton) {
-        welcomeGoAccountsButton.addEventListener('click', () => {
+/** Sets up event listeners for the welcome guide buttons INSIDE the dashboard. */
+function setupDashboardWelcomeListeners() {
+    if (welcomeDashGoAccountsButton) {
+        welcomeDashGoAccountsButton.addEventListener('click', () => {
             showSection('manage-accounts-section');
-            // Optionally hide the guide permanently after interaction, or rely on data check
-            // welcomeGuideSection?.classList.add('hidden');
         });
     }
-    if (welcomeGoCategoriesButton) {
-        welcomeGoCategoriesButton.addEventListener('click', () => {
+    if (welcomeDashGoCategoriesButton) {
+        welcomeDashGoCategoriesButton.addEventListener('click', () => {
             showSection('manage-categories-section');
-            // welcomeGuideSection?.classList.add('hidden');
         });
     }
-    if (welcomeDismissButton) { 
-        welcomeDismissButton.addEventListener('click', () => {
-            welcomeGuideSection?.classList.add('hidden');
-        });
+    if (welcomeDashDismissButton) {
+        welcomeDashDismissButton.addEventListener('click', handleWelcomeDismiss); // Add listener
     }
+}
+
+/** Handles the click on the 'Dismiss' button for the dashboard welcome guide. */
+async function handleWelcomeDismiss() {
+    console.log("Dismiss button clicked.");
+    if (!welcomeGuideDashboard || !dashboardContentMain || !welcomeDashDismissButton) return;
+
+    // 1. Update UI Immediately
+    welcomeGuideDashboard.classList.add('hidden');
+    dashboardContentMain.classList.remove('hidden'); // Show regular dashboard content
+    welcomeDashDismissButton.disabled = true; // Disable button
+    if(welcomeDismissStatusDiv) updateStatusMessage(welcomeDismissStatusDiv, "Saving preference...", "info");
+
+    // 2. Update Global Flag
+    welcomeDismissed = true;
+
+    // 3. Save State to Database (async)
+    try {
+        await updateMetadataFlag('welcomeDismissed', true);
+        console.log("Welcome guide dismissed state saved to DB.");
+        if(welcomeDismissStatusDiv) updateStatusMessage(welcomeDismissStatusDiv, "Preference Saved.", "success", 2000); // Short success message
+
+    } catch (error) {
+        console.error("Failed to save welcome dismissed state:", error);
+        // Revert UI? Or just inform user? Let's just inform.
+        welcomeDashDismissButton.disabled = false; // Re-enable on error
+        if(welcomeDismissStatusDiv) updateStatusMessage(welcomeDismissStatusDiv, `Error saving preference: ${error}`, "error");
+        // Revert global flag if save failed? Might cause confusion.
+        // welcomeDismissed = false;
+    }
+}
+
+/**
+ * Updates a specific boolean flag within the 'appData' object in the metadata store.
+ * @param {string} flagName The name of the flag (e.g., 'welcomeDismissed').
+ * @param {boolean} value The value to set the flag to.
+ * @returns {Promise<void>}
+ */
+function updateMetadataFlag(flagName, value) {
+    return new Promise(async (resolve, reject) => {
+        if (!db) return reject("Database not initialized.");
+        if (typeof flagName !== 'string' || typeof value !== 'boolean') {
+            return reject("Invalid flag name or value for metadata update.");
+        }
+
+        const transaction = db.transaction([METADATA_STORE_NAME], 'readwrite');
+        const metaStore = transaction.objectStore(METADATA_STORE_NAME);
+
+        const getReq = metaStore.get('appData');
+
+        getReq.onerror = (event) => reject(`Failed to read metadata: ${event.target.error}`);
+        getReq.onsuccess = (event) => {
+            let metadata = event.target.result || { key: 'appData', ready_to_assign: 0.0 }; // Get existing or create default
+
+            // Update the specific flag
+            metadata[flagName] = value;
+
+            const putReq = metaStore.put(metadata);
+            putReq.onerror = (event) => reject(`Failed to save updated metadata: ${event.target.error}`);
+            putReq.onsuccess = () => {
+                // Successfully saved
+            };
+        };
+
+        transaction.oncomplete = () => {
+            console.log(`Metadata flag '${flagName}' updated to ${value}.`);
+            resolve();
+        };
+        transaction.onerror = (event) => {
+            console.error(`Transaction error updating metadata flag '${flagName}':`, event.target.error);
+            reject(`Transaction failed: ${event.target.error}`);
+        };
+    });
 }
 
 /**
@@ -1187,13 +1269,15 @@ function updateBudgetAmountInDB(period, categoryName, newAmount) {
 }
 
 /**
- * Processes budget data and updates the UI, including showing the welcome guide if needed.
+ * Processes budget data and updates the UI, showing welcome guide within dashboard if needed.
  * @param {object | null} data The budget data object from DB, or null if load failed.
+ * @param {boolean} dismissed Whether the welcome guide has been dismissed by the user.
  */
-async function processBudgetData(data) {
-    console.log(`Processing budget data...`);
-    // --- Reset month/year state on new data load ---
-    currentBudgetMonth = null;
+async function processBudgetData(data, dismissed) { // Added 'dismissed' parameter
+    console.log(`Processing budget data... Dismissed status: ${dismissed}`);
+
+    // --- Reset month/year state ---
+    currentBudgetMonth = null; // etc... reset all relevant state variables
     currentChartMonth = null;
     earliestDataMonth = null;
     latestDataMonth = null;
@@ -1203,24 +1287,15 @@ async function processBudgetData(data) {
     const isEffectivelyEmpty = isDataEssentiallyEmpty(data);
     console.log("Is data essentially empty?", isEffectivelyEmpty);
 
-    // --- Handle Welcome Guide Visibility ---
-    if (welcomeGuideSection) {
-        welcomeGuideSection.classList.toggle('hidden', !isEffectivelyEmpty);
-    } else {
-        console.warn("Welcome guide section not found during processing.");
-    }
-
     // --- Handle Null Data Case (Load Failed) ---
     if (!data) {
         console.warn("processBudgetData called with null data (load failed).");
-        // Display default "no data" state
         clearDataDisplay();
-        const defaultPeriod = getCurrentRealMonth();
-        const defaultYear = getCurrentRealYear();
-        updateBudgetView(defaultPeriod);
-        updateChartView(defaultPeriod);
+        // ... (update views with default periods/years) ...
+        updateBudgetView(getCurrentRealMonth());
+        updateChartView(getCurrentRealMonth());
         updateTrendChartView();
-        updateYearlySummaryView(defaultYear);
+        updateYearlySummaryView(getCurrentRealYear());
         displayRTA(0);
         displayAccountBalances({});
         displayDashboardSummary({ latestMonth: 'N/A', income: 0, spending: 0 });
@@ -1228,34 +1303,31 @@ async function processBudgetData(data) {
         displayExistingAccounts({});
         populateCategoryGroupDropdown({}, []);
         displayExistingCategories([], {});
-        setupStandaloneEventListeners(); // Ensure these run even if data load fails
+        setupStandaloneEventListeners();
 
-        // If data load failed, but welcome guide exists, ensure it's shown
-        // (isEffectivelyEmpty would be true here)
-        if (welcomeGuideSection) welcomeGuideSection.classList.remove('hidden');
+        // Show dashboard section, but hide its main content and potentially show welcome guide
+        showSection('dashboard-summary');
+        const showWelcome = isEffectivelyEmpty && !dismissed;
+        if(welcomeGuideDashboard) welcomeGuideDashboard.classList.toggle('hidden', !showWelcome);
+        if(dashboardContentMain) dashboardContentMain.classList.toggle('hidden', showWelcome); // Hide main content if showing welcome
 
-        // Don't try to show a default section if the welcome guide is meant to be shown
-        if (!welcomeGuideSection || welcomeGuideSection.classList.contains('hidden')) {
-            showSection('dashboard-summary'); // Fallback to dashboard if welcome guide isn't shown
-        }
         return; // Stop processing if data is null
     }
 
     // --- Data exists, proceed with processing ---
-    // Ensure basic structure exists
-    data.accounts = data.accounts || {};
+    data.accounts = data.accounts || {}; // etc... ensure structure exists
     data.categories = data.categories || [];
     data.transactions = data.transactions || [];
     data.budget_periods = data.budget_periods || {};
     data.category_groups = data.category_groups || {};
     data.ready_to_assign = data.ready_to_assign || 0.0;
 
-    // Store loaded data
-    localBudgetData = JSON.parse(JSON.stringify(data)); // Deep copy
+    localBudgetData = JSON.parse(JSON.stringify(data));
     let allTransactionsForDisplay = data.transactions || [];
 
     try {
         // --- Determine date range ---
+        // ... (find earliest/latest months/years) ...
         earliestDataMonth = findEarliestMonth(allTransactionsForDisplay);
         latestDataMonth = findLatestMonth(allTransactionsForDisplay);
         earliestDataYear = findEarliestYear(allTransactionsForDisplay);
@@ -1263,7 +1335,9 @@ async function processBudgetData(data) {
         const initialDisplayMonth = latestDataMonth || getCurrentRealMonth();
         const initialDisplayYear = latestDataYear || getCurrentRealYear();
 
+
         // --- Populate Static UI elements ---
+        // ... (populate filters, existing accounts/categories) ...
         populateAccountFilter(data.accounts, [filterAccountSelect, txAccountSelect]);
         populateCategoryFilter(
             data.categories || [],
@@ -1278,15 +1352,14 @@ async function processBudgetData(data) {
         );
         displayExistingCategories(data.categories, data.category_groups);
 
-
-        // --- Display Dashboard ---
+        // --- Display Dashboard Content (conditionally hidden/shown below) ---
         let dashboardSummaryMonth = latestDataMonth || 'N/A';
         let monthSummary = { latestMonth: dashboardSummaryMonth, income: 0, spending: 0 };
         if (latestDataMonth) {
-            monthSummary = {
-                latestMonth: dashboardSummaryMonth,
-                ...calculatePeriodSummary(dashboardSummaryMonth, allTransactionsForDisplay)
-            };
+             monthSummary = {
+                 latestMonth: dashboardSummaryMonth,
+                 ...calculatePeriodSummary(dashboardSummaryMonth, allTransactionsForDisplay)
+             };
         }
         displayDashboardSummary(monthSummary);
         displayAccountBalances(data.accounts);
@@ -1294,48 +1367,48 @@ async function processBudgetData(data) {
 
         // --- Display Transactions List ---
         displayTransactions(allTransactionsForDisplay);
-        resetAllFilters(); // Apply default filter state
+        resetAllFilters();
 
-        // --- Update Views for Initial Period ---
+        // --- Update Other Views for Initial Period ---
         updateBudgetView(initialDisplayMonth);
-        updateChartView(initialDisplayMonth); // Pie Chart
-        updateTrendChartView();              // Bar Chart Trend
+        updateChartView(initialDisplayMonth);
+        updateTrendChartView();
         updateYearlySummaryView(initialDisplayYear);
 
-        // --- Decide which section to show initially ---
-        if (isEffectivelyEmpty && welcomeGuideSection) {
-            // Welcome guide is visible, ensure no other section is accidentally shown
-            mainSections.forEach(section => {
-                if (section.id !== 'welcome-guide') {
-                    section.classList.add('hidden');
-                }
-            });
-            // Do NOT activate any nav link if the welcome guide is shown
-             navLinks.forEach(nav => {
-                nav.classList.remove('active-link');
-                nav.removeAttribute('aria-current');
-            });
-            console.log("Showing Welcome Guide instead of default section.");
+        // --- Control Dashboard Welcome/Content Visibility ---
+        const showWelcome = isEffectivelyEmpty && !dismissed;
+        console.log(`Controlling dashboard visibility: showWelcome = ${showWelcome}`);
+        if(welcomeGuideDashboard) welcomeGuideDashboard.classList.toggle('hidden', !showWelcome);
+        if(dashboardContentMain) dashboardContentMain.classList.toggle('hidden', showWelcome);
+
+        // --- Ensure Dashboard is the Initially Shown Section ---
+        // (Unless another section was explicitly navigated to beforehand, which showSection handles)
+        // Check if *any* section is currently visible (excluding the dashboard itself briefly)
+        const anyOtherSectionVisible = Array.from(mainSections).some(
+            section => section.id !== 'dashboard-summary' && !section.classList.contains('hidden')
+        );
+        if (!anyOtherSectionVisible) {
+             console.log("Setting initial view to Dashboard.");
+             showSection('dashboard-summary');
         } else {
-            // Data exists (or welcome guide is hidden), show the dashboard by default
-            showSection('dashboard-summary');
-            console.log("Showing Dashboard as default section.");
+             console.log("Another section is already active, not forcing dashboard view.");
         }
+
 
     } catch (uiError) {
         console.error("Error updating UI:", uiError);
         updateStatus(`Error displaying data: ${uiError.message}`, "error");
         clearDataDisplay();
-        const defaultYear = getCurrentRealYear();
-        const defaultPeriod = getCurrentRealMonth();
-        updateYearlySummaryView(defaultYear);
-        updateBudgetView(defaultPeriod);
-        updateChartView(defaultPeriod);
+        // ... (update views with defaults) ...
+        updateBudgetView(getCurrentRealMonth());
+        updateChartView(getCurrentRealMonth());
         updateTrendChartView();
+        updateYearlySummaryView(getCurrentRealYear());
 
-        // Fallback to dashboard even on UI error, hide welcome guide if it exists
-         if (welcomeGuideSection) welcomeGuideSection.classList.add('hidden');
-         showSection('dashboard-summary');
+        // Fallback to dashboard on UI error, ensure welcome guide is hidden
+        if (welcomeGuideDashboard) welcomeGuideDashboard.classList.add('hidden');
+        if (dashboardContentMain) dashboardContentMain.classList.remove('hidden'); // Show main content on error
+        showSection('dashboard-summary');
     }
 }
 
@@ -3304,21 +3377,23 @@ function seedInitialData() {
     });
 }
 
-/** Loads all budget data from IndexedDB stores. */
+/** Loads all budget data from IndexedDB stores, including welcome dismissed status. */
 async function loadDataFromDB() {
     console.log("Attempting to load data from IndexedDB...");
     if (!db) {
         console.error("DB not available for loading.");
         updateStatus("Error: Cannot load data, database unavailable.", "error");
-        processBudgetData(null); // Process null to show 'no data' state
-        return; 
+        welcomeDismissed = false; // Assume not dismissed if DB fails
+        processBudgetData(null, welcomeDismissed); // Process null to show 'no data' state
+        return;
     }
- 
-    const transaction = db.transaction([
+
+    const storeNames = [
         TX_STORE_NAME, ACCOUNT_STORE_NAME, CATEGORY_STORE_NAME,
         GROUP_STORE_NAME, BUDGET_PERIOD_STORE_NAME, METADATA_STORE_NAME
-    ], 'readonly');
- 
+    ];
+    const transaction = db.transaction(storeNames, 'readonly');
+
     const stores = {
         tx: transaction.objectStore(TX_STORE_NAME),
         acc: transaction.objectStore(ACCOUNT_STORE_NAME),
@@ -3327,50 +3402,41 @@ async function loadDataFromDB() {
         bp: transaction.objectStore(BUDGET_PERIOD_STORE_NAME),
         meta: transaction.objectStore(METADATA_STORE_NAME),
     };
- 
+
     const requests = {
         transactions: stores.tx.getAll(),
         accounts: stores.acc.getAll(),
         categories: stores.cat.getAll(),
         groups: stores.grp.getAll(),
         periods: stores.bp.getAll(),
-        metadata: stores.meta.get('appData') 
+        metadata: stores.meta.get('appData') // Fetch the whole metadata object
     };
- 
+
     try {
         const results = await new Promise((resolve, reject) => {
             let res = {};
             let completed = 0;
             const totalRequests = Object.keys(requests).length;
- 
+
             Object.entries(requests).forEach(([key, req]) => {
                 req.onsuccess = (event) => {
                     res[key] = event.target.result;
                     completed++;
-                    if (completed === totalRequests) {
-                        resolve(res); // Resolve with the results object
-                    }
+                    if (completed === totalRequests) resolve(res);
                 };
                 req.onerror = (event) => {
                     console.error(`Error loading from ${key} store:`, event.target.error);
-                     completed++; // Still count as completed to avoid hanging
-                     if (completed === totalRequests) {
-                         resolve(res); // Resolve even if some parts failed
-                     }
+                    res[key] = (key === 'metadata') ? null : []; // Provide default empty/null on error
+                    completed++;
+                    if (completed === totalRequests) resolve(res); // Resolve even if parts failed
                 };
             });
- 
-             transaction.oncomplete = () => {
-                 console.log("Read transaction from IndexedDB complete.");
-             };
-             transaction.onerror = (event) => {
-                 // This might fire if the transaction is aborted due to an error above
-                 console.error("Read transaction error:", event.target.error);
-                 // Reject the promise if the transaction itself fails fundamentally
-                 reject(new Error(`Database read transaction failed: ${event.target.error}`));
-             };
+
+            transaction.oncomplete = () => console.log("Read transaction from IndexedDB complete.");
+            transaction.onerror = (event) => reject(new Error(`Database read transaction failed: ${event.target.error}`));
         }); // End Promise
- 
+
+        // --- Extract data AND the welcome dismissed flag ---
         const loadedData = {
             transactions: results.transactions || [],
             accounts: (results.accounts || []).reduce((acc, item) => { acc[item.name] = item.balance; return acc; }, {}),
@@ -3379,31 +3445,38 @@ async function loadDataFromDB() {
             budget_periods: (results.periods || []).reduce((acc, item) => { acc[item.period] = item.budget; return acc; }, {}),
             ready_to_assign: results.metadata?.ready_to_assign || 0.0
         };
+        // Set the global flag based on loaded metadata
+        welcomeDismissed = results.metadata?.welcomeDismissed || false; // Default to false if not present
         console.log("Loaded data from IndexedDB:", loadedData);
- 
-        if (isDataEmpty(loadedData)) {
+        console.log("Welcome Dismissed Status:", welcomeDismissed);
+
+        // --- Check for Empty Data & Seeding ---
+        if (isDataEmpty(loadedData)) { // Use the simplified check now maybe?
             try {
                 await seedInitialData();
-                // IMPORTANT: Reload data AFTER seeding is complete
                 console.log("Seeding complete, reloading data...");
-                await loadDataFromDB(); // Recursive call to reload the newly seeded data
-                return; // Exit this execution context as the recursive call handles the rest
+                 // Reset welcomeDismissed flag after seeding, maybe? Or assume new user hasn't dismissed.
+                 welcomeDismissed = false; // Explicitly reset after seeding
+                 await updateMetadataFlag('welcomeDismissed', false); // Ensure DB matches
+                await loadDataFromDB(); // Recursive call reloads everything including the flag
+                return;
             } catch (seedError) {
                 console.error("Failed to seed initial data:", seedError);
                 updateStatus("Error: Could not set up initial data.", "error");
-                processBudgetData(loadedData);
+                processBudgetData(loadedData, welcomeDismissed); // Process potentially empty data
             }
         } else {
-            // Process the loaded data if it wasn't empty
-            processBudgetData(loadedData);
+            // Process the loaded data
+            processBudgetData(loadedData, welcomeDismissed);
         }
- 
+
     } catch (loadError) {
         console.error("Failed to load data from IndexedDB:", loadError);
         updateStatus(`Error loading data: ${loadError.message}`, "error");
-        processBudgetData(null); // Show empty state on significant loading error
+        welcomeDismissed = false; // Assume not dismissed on error
+        processBudgetData(null, welcomeDismissed); // Show empty state
     }
- } 
+}
 
 /** Saves a transaction (expense, income, refund, or transfer) and updates state */
 async function saveTransactionStandalone(transaction) {
