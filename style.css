@@ -1060,4 +1060,27 @@ td.editable-budget input[type="number"]::-webkit-inner-spin-button {
      opacity: 0.65;
      cursor: not-allowed;
  }
+
+ /* --- Welcome Guide --- */
+#welcome-guide {
+    background-color: #e9f5ff; 
+    border: 1px solid #b3d7ff; 
+    color: #004085; 
+    margin-bottom: 25px;
+}
+
+#welcome-guide h2 {
+    color: #004085;
+    margin-top: 0;
+    border-bottom: 1px solid #b3d7ff;
+    padding-bottom: 10px;
+}
+
+#welcome-guide.hidden {
+    display: none;
+}
+
+#welcome-guide .button {
+    min-width: 150px; /* Ensure buttons don't get too narrow */
+}
 }

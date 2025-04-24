@@ -79,6 +79,7 @@ let overlay;
 let navLinks; // Will be assigned via querySelectorAll
 let mainSections; // Will be assigned via querySelectorAll
 
+
 // --- Manage Accounts Elements ---
 let manageAccountsSection;
 let manageAccountsContent; // Wrapper div
@@ -112,6 +113,12 @@ let yearlySummaryTfoot;
 let yearlySummaryNoDataMsg;
 let yearlyPrevYearBtn;
 let yearlyNextYearBtn;
+
+// --- Welcome Guide Elements ---
+let welcomeGuideSection;
+let welcomeGoAccountsButton;
+let welcomeGoCategoriesButton;
+let welcomeDismissButton; 
 
 // --- Define Constants ---
 const DB_NAME = 'budgetAppDB';
@@ -327,6 +334,11 @@ async function initializeApp() {
     yearlySummaryNoDataMsg = document.getElementById('yearly-summary-no-data');
     yearlyPrevYearBtn = document.getElementById('yearly-prev-year');
     yearlyNextYearBtn = document.getElementById('yearly-next-year');
+
+    welcomeGuideSection = document.getElementById('welcome-guide');
+    welcomeGoAccountsButton = document.getElementById('welcome-go-accounts');
+    welcomeGoCategoriesButton = document.getElementById('welcome-go-categories');
+    welcomeDismissButton = document.getElementById('welcome-dismiss'); 
     // <<< --- END OF DOM ELEMENT ASSIGNMENTS --- >>>
 
 
@@ -341,6 +353,7 @@ async function initializeApp() {
     setupBudgetEditingListener();
     setupYearlyNavButtonListeners();
     setupChartToggleButtons(); // Setup listeners AFTER elements are assigned
+    setupWelcomeGuideListeners();
 
     await loadDataFromDB();
 
@@ -352,6 +365,43 @@ async function initializeApp() {
     console.log("Application initialization complete.");
 }
 
+/** Sets up event listeners for the welcome guide buttons. */
+function setupWelcomeGuideListeners() {
+    if (welcomeGoAccountsButton) {
+        welcomeGoAccountsButton.addEventListener('click', () => {
+            showSection('manage-accounts-section');
+            // Optionally hide the guide permanently after interaction, or rely on data check
+            // welcomeGuideSection?.classList.add('hidden');
+        });
+    }
+    if (welcomeGoCategoriesButton) {
+        welcomeGoCategoriesButton.addEventListener('click', () => {
+            showSection('manage-categories-section');
+            // welcomeGuideSection?.classList.add('hidden');
+        });
+    }
+    if (welcomeDismissButton) { 
+        welcomeDismissButton.addEventListener('click', () => {
+            welcomeGuideSection?.classList.add('hidden');
+        });
+    }
+}
+
+/**
+ * Checks if the application data represents a fresh start or seeded state.
+ * @param {object} data The loaded budget data object.
+ * @returns {boolean} True if data is essentially empty, false otherwise.
+ */
+function isDataEssentiallyEmpty(data) {
+    if (!data) return true; // No data loaded at all
+
+    const accountNames = Object.keys(data.accounts || {});
+    const hasOnlyCashOrNoAccounts = accountNames.length === 0 || (accountNames.length === 1 && accountNames[0] === 'Cash');
+    const hasNoTransactions = !data.transactions || data.transactions.length === 0;
+
+    // Basic check: Is it just the default account (or none) and no transactions?
+    return hasOnlyCashOrNoAccounts && hasNoTransactions;
+}
 
 // --- Setup Chart Toggle Button Listeners ---
 function setupChartToggleButtons() {
@@ -1137,40 +1187,61 @@ function updateBudgetAmountInDB(period, categoryName, newAmount) {
 }
 
 /**
- * Processes budget data and updates the UI.
- * @param {object} data The budget data object from DB.
+ * Processes budget data and updates the UI, including showing the welcome guide if needed.
+ * @param {object | null} data The budget data object from DB, or null if load failed.
  */
 async function processBudgetData(data) {
     console.log(`Processing budget data...`);
-    // --- Reset month state on new data load ---
+    // --- Reset month/year state on new data load ---
     currentBudgetMonth = null;
     currentChartMonth = null;
     earliestDataMonth = null;
     latestDataMonth = null;
-    earliestDataYear = null; 
-    latestDataYear = null;   
+    earliestDataYear = null;
+    latestDataYear = null;
 
+    const isEffectivelyEmpty = isDataEssentiallyEmpty(data);
+    console.log("Is data essentially empty?", isEffectivelyEmpty);
+
+    // --- Handle Welcome Guide Visibility ---
+    if (welcomeGuideSection) {
+        welcomeGuideSection.classList.toggle('hidden', !isEffectivelyEmpty);
+    } else {
+        console.warn("Welcome guide section not found during processing.");
+    }
+
+    // --- Handle Null Data Case (Load Failed) ---
     if (!data) {
-        console.warn("processBudgetData called with null data.");
+        console.warn("processBudgetData called with null data (load failed).");
         // Display default "no data" state
         clearDataDisplay();
         const defaultPeriod = getCurrentRealMonth();
         const defaultYear = getCurrentRealYear();
-        updateBudgetView(defaultPeriod); // Will show 'no data' message
-        updateChartView(defaultPeriod);  // Will show 'no data' message for pie
-        updateTrendChartView();          // Will show 'no data' message for bar
-        updateYearlySummaryView(defaultYear); // Will show 'no data' message
+        updateBudgetView(defaultPeriod);
+        updateChartView(defaultPeriod);
+        updateTrendChartView();
+        updateYearlySummaryView(defaultYear);
         displayRTA(0);
         displayAccountBalances({});
         displayDashboardSummary({ latestMonth: 'N/A', income: 0, spending: 0 });
-        displayTransactions([]); // Pass empty array explicitly
+        displayTransactions([]);
         displayExistingAccounts({});
-        populateCategoryGroupDropdown({}, []); // Pass empty data
+        populateCategoryGroupDropdown({}, []);
         displayExistingCategories([], {});
-        setupStandaloneEventListeners();
-        return;
+        setupStandaloneEventListeners(); // Ensure these run even if data load fails
+
+        // If data load failed, but welcome guide exists, ensure it's shown
+        // (isEffectivelyEmpty would be true here)
+        if (welcomeGuideSection) welcomeGuideSection.classList.remove('hidden');
+
+        // Don't try to show a default section if the welcome guide is meant to be shown
+        if (!welcomeGuideSection || welcomeGuideSection.classList.contains('hidden')) {
+            showSection('dashboard-summary'); // Fallback to dashboard if welcome guide isn't shown
+        }
+        return; // Stop processing if data is null
     }
 
+    // --- Data exists, proceed with processing ---
     // Ensure basic structure exists
     data.accounts = data.accounts || {};
     data.categories = data.categories || [];
@@ -1180,15 +1251,15 @@ async function processBudgetData(data) {
     data.ready_to_assign = data.ready_to_assign || 0.0;
 
     // Store loaded data
-    localBudgetData = JSON.parse(JSON.stringify(data));
+    localBudgetData = JSON.parse(JSON.stringify(data)); // Deep copy
     let allTransactionsForDisplay = data.transactions || [];
 
     try {
         // --- Determine date range ---
         earliestDataMonth = findEarliestMonth(allTransactionsForDisplay);
         latestDataMonth = findLatestMonth(allTransactionsForDisplay);
-        earliestDataYear = findEarliestYear(allTransactionsForDisplay); 
-        latestDataYear = findLatestYear(allTransactionsForDisplay);     
+        earliestDataYear = findEarliestYear(allTransactionsForDisplay);
+        latestDataYear = findLatestYear(allTransactionsForDisplay);
         const initialDisplayMonth = latestDataMonth || getCurrentRealMonth();
         const initialDisplayYear = latestDataYear || getCurrentRealYear();
 
@@ -1199,10 +1270,8 @@ async function processBudgetData(data) {
             allTransactionsForDisplay,
             [filterCategorySelect, txCategorySelect],
             data.category_groups || {}
-            // No mode parameter needed anymore
         );
         displayExistingAccounts(data.accounts);
-        // These are standalone features, always run
         populateCategoryGroupDropdown(
             data.category_groups || {},
             data.categories || []
@@ -1223,28 +1292,53 @@ async function processBudgetData(data) {
         displayAccountBalances(data.accounts);
         displayRTA(data.ready_to_assign);
 
-        // --- Display Transactions List (shows all transactions from DB) ---
-        displayTransactions(allTransactionsForDisplay); // Only pass the single list
-        resetAllFilters();
+        // --- Display Transactions List ---
+        displayTransactions(allTransactionsForDisplay);
+        resetAllFilters(); // Apply default filter state
 
         // --- Update Views for Initial Period ---
         updateBudgetView(initialDisplayMonth);
-        updateChartView(initialDisplayMonth); // Handles Pie Chart
-        updateTrendChartView();              // Handles Bar Chart Trend
+        updateChartView(initialDisplayMonth); // Pie Chart
+        updateTrendChartView();              // Bar Chart Trend
         updateYearlySummaryView(initialDisplayYear);
+
+        // --- Decide which section to show initially ---
+        if (isEffectivelyEmpty && welcomeGuideSection) {
+            // Welcome guide is visible, ensure no other section is accidentally shown
+            mainSections.forEach(section => {
+                if (section.id !== 'welcome-guide') {
+                    section.classList.add('hidden');
+                }
+            });
+            // Do NOT activate any nav link if the welcome guide is shown
+             navLinks.forEach(nav => {
+                nav.classList.remove('active-link');
+                nav.removeAttribute('aria-current');
+            });
+            console.log("Showing Welcome Guide instead of default section.");
+        } else {
+            // Data exists (or welcome guide is hidden), show the dashboard by default
+            showSection('dashboard-summary');
+            console.log("Showing Dashboard as default section.");
+        }
 
     } catch (uiError) {
         console.error("Error updating UI:", uiError);
         updateStatus(`Error displaying data: ${uiError.message}`, "error");
-        clearDataDisplay(); // Clear display on error
+        clearDataDisplay();
         const defaultYear = getCurrentRealYear();
         const defaultPeriod = getCurrentRealMonth();
         updateYearlySummaryView(defaultYear);
         updateBudgetView(defaultPeriod);
         updateChartView(defaultPeriod);
-        updateTrendChartView(); // Also clear/show no data for trend chart  
+        updateTrendChartView();
+
+        // Fallback to dashboard even on UI error, hide welcome guide if it exists
+         if (welcomeGuideSection) welcomeGuideSection.classList.add('hidden');
+         showSection('dashboard-summary');
     }
 }
+
 // --- Budget Calculation Helper Functions ---
 
 /**
