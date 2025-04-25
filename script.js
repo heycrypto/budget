@@ -1,10 +1,10 @@
 // python3 -m http.server
 console.log("Script loaded!");
 
-// --- DOM Element References (Declare with let, assign in initializeApp) ---
+// --- DOM Element References ---
 let dashboardSection;
-let dashboardContentMain; 
-let welcomeGuideDashboard; 
+let dashboardContentMain;
+let welcomeGuideDashboard;
 let welcomeDashGoAccountsButton;
 let welcomeDashGoCategoriesButton;
 let welcomeDashDismissButton;
@@ -25,7 +25,7 @@ let filterStartDateInput;
 let filterEndDateInput;
 let resetFiltersButton;
 let noResultsMessage;
-let db; // Variable to hold the database instance
+let db;
 
 let addExpenseFormSection;
 let newTxForm;
@@ -37,6 +37,7 @@ let payeeLabel;
 let txPayeeInput;
 let txTransferToAccountSelect;
 let categoryGroup;
+let categoryLabel; // <-- Add reference for category label
 let txCategorySelect;
 let txAmountInput;
 let txMemoInput;
@@ -44,8 +45,6 @@ let addTxStatusDiv;
 
 let syncSection;
 let syncStandaloneContent;
-
-// --- Import/Export Elements ---
 let exportStandaloneButton;
 let exportStandaloneStatusDiv;
 let importStandaloneFileInput;
@@ -53,8 +52,7 @@ let importStandaloneButton;
 let importStandaloneStatusDiv;
 let statusMessageDiv;
 
-let localBudgetData = null; // Store data loaded/managed in the app
-
+let localBudgetData = null;
 let budgetViewSection;
 let budgetViewMonthSpan;
 let budgetTbody;
@@ -67,28 +65,24 @@ let chartsSection;
 let spendingChartCanvas;
 let chartMonthDisplaySpan;
 let chartNoDataMsg;
-let spendingPieChartInstance = null; // To destroy previous chart before rendering new one
-
+let spendingPieChartInstance = null;
 let showPieChartBtn;
 let showBarChartBtn;
 let spendingPieChartArea;
-let incomeExpenseBarChartArea; // <<< The problematic one!
+let incomeExpenseBarChartArea;
 let incomeExpenseBarChartCanvas;
 let trendChartNoDataMsg;
-let incomeExpenseBarChartInstance = null; // Instance for the new bar chart
-
+let incomeExpenseBarChartInstance = null;
 
 let menuToggleButton;
 let menuCloseButton;
 let sideMenu;
 let overlay;
-let navLinks; // Will be assigned via querySelectorAll
-let mainSections; // Will be assigned via querySelectorAll
+let navLinks;
+let mainSections;
 
-
-// --- Manage Accounts Elements ---
 let manageAccountsSection;
-let manageAccountsContent; // Wrapper div
+let manageAccountsContent;
 let addAccountForm;
 let newAccountNameInput;
 let newAccountTypeSelect;
@@ -96,22 +90,19 @@ let newAccountBalanceInput;
 let addAccountStatusDiv;
 let existingAccountsList;
 
-// --- Manage Categories Elements ---
 let manageCategoriesSection;
 let manageCategoriesContent;
 let addCategoryForm;
 let newCategoryNameInput;
 let newCategoryGroupSelect;
 let addCategoryStatusDiv;
-let existingCategoriesListDiv; // The div containing the list
+let existingCategoriesListDiv;
 
-// --- Date Navigation Buttons ---
 let budgetPrevMonthBtn;
 let budgetNextMonthBtn;
 let chartPrevMonthBtn;
 let chartNextMonthBtn;
 
-// --- Yearly Summary Elements ---
 let yearlySummarySection;
 let yearlySummaryYearSpan;
 let yearlySummaryTbody;
@@ -120,22 +111,26 @@ let yearlySummaryNoDataMsg;
 let yearlyPrevYearBtn;
 let yearlyNextYearBtn;
 
-// --- Welcome Guide Elements ---
 let welcomeGuideSection;
 let welcomeGoAccountsButton;
 let welcomeGoCategoriesButton;
-let welcomeDismissButton; 
+let welcomeDismissButton;
 let welcomeDismissed = false;
+
+// --- Settings Elements ---
+let settingsSection;
+let languageSelect;
+let settingsStatusDiv;
 
 // --- Define Constants ---
 const DB_NAME = 'budgetAppDB';
-const DB_VERSION = 2; // 
+const DB_VERSION = 3; // INCREMENT version if schema changed (adding language to metadata might not strictly require it IF handled gracefully)
 const TX_STORE_NAME = 'transactions';
 const ACCOUNT_STORE_NAME = 'accounts';
 const CATEGORY_STORE_NAME = 'categories';
 const GROUP_STORE_NAME = 'categoryGroups';
 const BUDGET_PERIOD_STORE_NAME = 'budgetPeriods';
-const METADATA_STORE_NAME = 'metadata'; // For RTA, etc.
+const METADATA_STORE_NAME = 'metadata';
 
 const INCOME_GROUP_NAME = "Income";
 const UNKNOWN_INCOME_SOURCE = "Unknown Income Source";
@@ -144,18 +139,24 @@ const SAVINGS_GROUP_NAME = "Savings Goals";
 const ARCHIVED_GROUP_NAME = "Archived";
 
 // --- Global Variables ---
-let currentBudgetMonth = null; // Stores "YYYY-MM" for the budget view
-let currentChartMonth = null;  
-let earliestDataMonth = null; 
-let latestDataMonth = null;   
+let currentBudgetMonth = null;
+let currentChartMonth = null;
+let earliestDataMonth = null;
+let latestDataMonth = null;
 let activeBudgetInput = null;
-let currentYearlySummaryYear = null; // Stores integer year (e.g., 2024)
-let earliestDataYear = null; 
-let latestDataYear = null; 
-let activeChartType = 'pie'; 
+let currentYearlySummaryYear = null;
+let earliestDataYear = null;
+let latestDataYear = null;
+let activeChartType = 'pie';
+
+// --- Language/Translation Variables ---
+let currentLanguage = 'en'; // Default language
+let currentTranslations = {}; // To hold loaded translations
+const supportedLanguages = ['en']; // Add more language codes (e.g., 'es', 'fr') as you create files
 
 /**
  * Initializes the IndexedDB database.
+ * Ensures metadata store exists. Version 3 just in case.
  */
 function initDB() {
     return new Promise((resolve, reject) => {
@@ -169,7 +170,7 @@ function initDB() {
 
         request.onerror = (event) => {
             console.error("IndexedDB error:", event.target.error);
-            reject("Error opening IndexedDB.");
+            reject(translate('general.error.dbInitFailed.detail', { error: event.target.error }));
         };
 
         request.onsuccess = (event) => {
@@ -182,74 +183,285 @@ function initDB() {
         };
 
         request.onupgradeneeded = (event) => {
-            console.log("IndexedDB upgrade needed...");
+            console.log("IndexedDB upgrade needed (or first time setup)...");
             let tempDb = event.target.result;
             const transaction = event.target.transaction;
 
+            // Create stores if they don't exist (idempotent checks)
             if (!tempDb.objectStoreNames.contains(TX_STORE_NAME)) {
-                 console.log(`Creating object store: ${TX_STORE_NAME}`);
-                 const store = tempDb.createObjectStore(TX_STORE_NAME, { keyPath: 'id', autoIncrement: true });
-                 store.createIndex('dateIndex', 'date', { unique: false });
-                 store.createIndex('categoryIndex', 'category', { unique: false });
-                 store.createIndex('accountIndex', 'account', { unique: false });
-                 console.log("Created main transaction store.");
+                console.log(`Creating object store: ${TX_STORE_NAME}`);
+                const store = tempDb.createObjectStore(TX_STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                store.createIndex('dateIndex', 'date', { unique: false });
+                store.createIndex('categoryIndex', 'category', { unique: false });
+                store.createIndex('accountIndex', 'account', { unique: false });
             }
             if (!tempDb.objectStoreNames.contains(ACCOUNT_STORE_NAME)) {
                 console.log(`Creating object store: ${ACCOUNT_STORE_NAME}`);
                 tempDb.createObjectStore(ACCOUNT_STORE_NAME, { keyPath: 'name' });
-                 console.log("Created account store.");
             }
-             if (!tempDb.objectStoreNames.contains(CATEGORY_STORE_NAME)) {
+            if (!tempDb.objectStoreNames.contains(CATEGORY_STORE_NAME)) {
                 console.log(`Creating object store: ${CATEGORY_STORE_NAME}`);
                 tempDb.createObjectStore(CATEGORY_STORE_NAME, { keyPath: 'name' });
-                 console.log("Created category store.");
             }
             if (!tempDb.objectStoreNames.contains(GROUP_STORE_NAME)) {
                 console.log(`Creating object store: ${GROUP_STORE_NAME}`);
-                 tempDb.createObjectStore(GROUP_STORE_NAME, { keyPath: 'categoryName' });
-                 console.log("Created category group store.");
+                tempDb.createObjectStore(GROUP_STORE_NAME, { keyPath: 'categoryName' });
             }
             if (!tempDb.objectStoreNames.contains(BUDGET_PERIOD_STORE_NAME)) {
                 console.log(`Creating object store: ${BUDGET_PERIOD_STORE_NAME}`);
-                 tempDb.createObjectStore(BUDGET_PERIOD_STORE_NAME, { keyPath: 'period' });
-                 console.log("Created budget period store.");
+                tempDb.createObjectStore(BUDGET_PERIOD_STORE_NAME, { keyPath: 'period' });
             }
-             if (!tempDb.objectStoreNames.contains(METADATA_STORE_NAME)) {
+            // Ensure metadata store exists
+            if (!tempDb.objectStoreNames.contains(METADATA_STORE_NAME)) {
                 console.log(`Creating object store: ${METADATA_STORE_NAME}`);
                 tempDb.createObjectStore(METADATA_STORE_NAME, { keyPath: 'key' });
-                 console.log("Created metadata store.");
             }
+             // If upgrading FROM a version that didn't have the language property,
+             // we might want to ensure it exists with a default.
+             // However, the load/save logic should handle its absence gracefully.
 
             transaction.oncomplete = () => {
                 console.log("IndexedDB upgrade transaction complete.");
             };
-             transaction.onerror = (event) => {
-                 console.error("IndexedDB upgrade transaction error:", event.target.error);
-             };
-             console.log("IndexedDB upgrade handler finished.");
+            transaction.onerror = (event) => {
+                console.error("IndexedDB upgrade transaction error:", event.target.error);
+            };
+            console.log("IndexedDB upgrade handler finished.");
         };
     });
+}
+
+// --- Translation Functions ---
+
+/**
+ * Loads translation data for the specified language code.
+ * @param {string} langCode - e.g., 'en', 'es'.
+ * @returns {Promise<boolean>} True if successful, false otherwise.
+ */
+async function loadTranslations(langCode) {
+    try {
+        const response = await fetch(`locales/${langCode}.json`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        currentTranslations = await response.json();
+        currentLanguage = langCode; // Update global language state
+        console.log(`Translations loaded for: ${langCode}`);
+        document.documentElement.lang = langCode; // Update HTML lang attribute
+        return true;
+    } catch (error) {
+        console.error(`Could not load translations for ${langCode}:`, error);
+        // Optionally fall back to English if loading fails?
+        if (langCode !== 'en') {
+            console.warn("Falling back to English translations.");
+            return await loadTranslations('en');
+        } else {
+             currentTranslations = {}; // Clear translations if English fails
+             return false;
+        }
+    }
+}
+
+/**
+ * Gets the translated string for a given token.
+ * Replaces placeholders like {placeholder_name} with values from replacements object.
+ * @param {string} token - The translation key (e.g., 'menu.dashboard').
+ * @param {object} [replacements={}] - Optional key-value pairs for placeholders.
+ * @returns {string} The translated string or a fallback.
+ */
+function translate(token, replacements = {}) {
+    let translation = currentTranslations[token];
+
+    if (translation === undefined) {
+        console.warn(`Missing translation for token: ${token}`);
+        // Return the token key itself as a fallback, indicating missing translation
+        return `[${token}]`;
+    }
+
+    // Replace placeholders
+    for (const key in replacements) {
+        if (Object.hasOwnProperty.call(replacements, key)) {
+            const regex = new RegExp(`{${key}}`, 'g');
+            translation = translation.replace(regex, replacements[key]);
+        }
+    }
+
+    return translation;
+}
+
+/**
+ * Applies translations to all static elements with data-translate attributes.
+ */
+function applyTranslationsToStaticElements() {
+    console.log("Applying static translations...");
+    const elements = document.querySelectorAll('[data-translate-token]');
+    elements.forEach(el => {
+        const token = el.dataset.translateToken;
+        const isDynamic = el.hasAttribute('data-translate-token-dynamic'); // Check if it's marked as dynamic
+
+        // Only translate if it's NOT marked as dynamic, OR if it has no children
+        if (!isDynamic || el.children.length === 0) {
+             el.textContent = translate(token);
+        } else {
+             // For dynamic containers, just update the parts around the dynamic content if needed
+             // Example: Find text nodes directly under the element
+             Array.from(el.childNodes).forEach(node => {
+                 if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+                     if (node.nodeType === Node.TEXT_NODE) {
+                     }
+                 }
+             });
+        }
+    });
+
+     // Translate attributes like placeholder, title, aria-label
+     const placeholderElements = document.querySelectorAll('[data-translate-placeholder]');
+     placeholderElements.forEach(el => {
+         el.placeholder = translate(el.dataset.translatePlaceholder);
+     });
+     const titleElements = document.querySelectorAll('[data-translate-title]');
+     titleElements.forEach(el => {
+         el.title = translate(el.dataset.translateTitle);
+     });
+     const ariaLabelElements = document.querySelectorAll('[data-translate-aria-label]');
+     ariaLabelElements.forEach(el => {
+         el.setAttribute('aria-label', translate(el.dataset.translateAriaLabel));
+     });
+
+    console.log("Static translations applied.");
+
+     // Special case: Update dynamic select options like transaction type
+     if (txTypeSelect) {
+         Array.from(txTypeSelect.options).forEach(option => {
+             const token = `addForm.type.${option.value}`;
+             option.textContent = translate(token);
+         });
+     }
+     if (newAccountTypeSelect) {
+         Array.from(newAccountTypeSelect.options).forEach(option => {
+             const token = `accounts.manage.add.type.${option.value}`;
+             option.textContent = translate(token);
+         });
+     }
+     if (languageSelect) {
+         Array.from(languageSelect.options).forEach(option => {
+             const token = `settings.language.${option.value}`;
+             option.textContent = translate(token);
+         });
+     }
+
+     // Re-render dynamic headers if needed (or ensure they use translate on update)
+     updateBudgetView(currentBudgetMonth);
+     updateChartView(currentChartMonth);
+     updateYearlySummaryView(currentYearlySummaryYear);
+     displayDashboardSummary(localBudgetData ? calculatePeriodSummary(latestDataMonth, localBudgetData.transactions) : null);
+}
+
+/** Saves the selected language preference to IndexedDB. */
+function saveLanguagePreference(langCode) {
+    return new Promise(async (resolve, reject) => {
+        updateStatusMessage(settingsStatusDiv, translate('settings.language.saving'), 'info');
+        if (!db) {
+            updateStatusMessage(settingsStatusDiv, translate('general.error.dbUnavailable'), 'error');
+            return reject("Database not initialized.");
+        }
+
+        const transaction = db.transaction([METADATA_STORE_NAME], 'readwrite');
+        const metaStore = transaction.objectStore(METADATA_STORE_NAME);
+
+        const getReq = metaStore.get('appData');
+        getReq.onerror = (event) => {
+            updateStatusMessage(settingsStatusDiv, translate('settings.language.error', { error: event.target.error }), 'error');
+            reject(`Failed to read metadata: ${event.target.error}`);
+        };
+        getReq.onsuccess = (event) => {
+            let metadata = event.target.result || { key: 'appData', ready_to_assign: 0.0, welcomeDismissed: false }; // Default structure
+            metadata.language = langCode; // Update language
+
+            const putReq = metaStore.put(metadata);
+            putReq.onerror = (event) => {
+                updateStatusMessage(settingsStatusDiv, translate('settings.language.error', { error: event.target.error }), 'error');
+                reject(`Failed to save updated metadata: ${event.target.error}`);
+            };
+            putReq.onsuccess = () => {
+                updateStatusMessage(settingsStatusDiv, translate('settings.language.saved'), 'success');
+            };
+        };
+
+        transaction.oncomplete = () => {
+            console.log(`Language preference saved: ${langCode}`);
+            resolve();
+        };
+        transaction.onerror = (event) => {
+            // Error already handled in putReq/getReq, but catch transaction failure
+            console.error(`Transaction error saving language preference:`, event.target.error);
+            if (!settingsStatusDiv.textContent.startsWith(translate('general.error.generic'))) { // Avoid double error messages
+                 updateStatusMessage(settingsStatusDiv, translate('settings.language.error', { error: event.target.error }), 'error');
+            }
+            reject(`Transaction failed: ${event.target.error}`);
+        };
+    });
+}
+
+
+/** Handles the language selection change. */
+async function handleLanguageChange(event) {
+    const newLang = event.target.value;
+    if (newLang === currentLanguage) return; // No change
+
+    try {
+        // 1. Save the preference
+        await saveLanguagePreference(newLang);
+
+        // 2. Load the new translations
+        const loaded = await loadTranslations(newLang);
+
+        if (loaded) {
+            // 3. Re-apply translations to static elements
+            applyTranslationsToStaticElements();
+
+            // 4. Refresh dynamic data displays to use new translations
+            // This ensures things like table headers, messages etc. inside dynamic
+            // rendering functions pick up the new language via translate().
+            // A full reload might be simplest, or targeted re-renders.
+            // Let's try reloading all data which triggers re-rendering.
+            await loadDataFromDB(); // This reloads data AND processes it, applying translations
+
+        } else {
+            // Loading failed (error already logged in loadTranslations)
+            updateStatusMessage(settingsStatusDiv, translate('settings.language.loadingError', { lang: newLang }), 'error');
+            // Revert dropdown to previous language?
+            languageSelect.value = currentLanguage;
+        }
+    } catch (error) {
+        console.error("Error handling language change:", error);
+        // Error saving preference (already shown in saveLanguagePreference)
+        // Revert dropdown?
+        languageSelect.value = currentLanguage;
+    }
 }
 
 // --- Application Initialization ---
 async function initializeApp() {
     console.log("Initializing application...");
-    await initDB().catch(error => { // Initialize DB first
+    await initDB().catch(error => {
         console.error("FATAL: Failed to initialize IndexedDB:", error);
-        // Attempt to update status, might fail if statusMessageDiv isn't assigned yet
-         try { updateStatus("Critical Error: Offline storage unavailable. App cannot function correctly.", "error"); } catch(e){}
-        return; // Stop further initialization
+        try {
+            // Try to display error even before full init
+            const statusDiv = document.getElementById('status-message') || document.body; // Fallback to body
+            statusDiv.textContent = translate('general.error.dbInitFailed.status'); // Use translate
+            statusDiv.className = 'status-error';
+        } catch (e) {}
+        return;
     });
-
     // <<< --- ASSIGN DOM ELEMENTS HERE --- >>>
     dashboardSection = document.getElementById('dashboard-summary');
-    dashboardContentMain = document.getElementById('dashboard-content-main'); // <-- Assign wrapper
-    welcomeGuideDashboard = document.getElementById('welcome-guide-dashboard'); // <-- Assign new guide
+    dashboardContentMain = document.getElementById('dashboard-content-main');
+    welcomeGuideDashboard = document.getElementById('welcome-guide-dashboard');
     welcomeDashGoAccountsButton = document.getElementById('welcome-dash-go-accounts');
     welcomeDashGoCategoriesButton = document.getElementById('welcome-dash-go-categories');
     welcomeDashDismissButton = document.getElementById('welcome-dash-dismiss');
     welcomeDismissStatusDiv = document.getElementById('welcome-dismiss-status');
-
     transactionsSection = document.getElementById('transactions-list');
     balancesList = document.getElementById('balances-list');
     rtaValueElement = document.getElementById('rta-value');
@@ -266,7 +478,6 @@ async function initializeApp() {
     filterEndDateInput = document.getElementById('filter-end-date');
     resetFiltersButton = document.getElementById('reset-filters');
     noResultsMessage = document.getElementById('no-results-message');
-
     addExpenseFormSection = document.getElementById('add-expense-form');
     newTxForm = document.getElementById('new-tx-form');
     txTypeSelect = document.getElementById('tx-type');
@@ -277,11 +488,11 @@ async function initializeApp() {
     txPayeeInput = document.getElementById('tx-payee');
     txTransferToAccountSelect = document.getElementById('tx-transfer-to-account');
     categoryGroup = document.getElementById('category-group');
+    categoryLabel = document.getElementById('category-label'); // Assign new label
     txCategorySelect = document.getElementById('tx-category');
     txAmountInput = document.getElementById('tx-amount');
     txMemoInput = document.getElementById('tx-memo');
     addTxStatusDiv = document.getElementById('add-tx-status');
-
     syncSection = document.getElementById('sync-section');
     syncStandaloneContent = document.getElementById('sync-standalone-content');
     exportStandaloneButton = document.getElementById('export-standalone-button');
@@ -289,8 +500,7 @@ async function initializeApp() {
     importStandaloneFileInput = document.getElementById('import-standalone-file');
     importStandaloneButton = document.getElementById('import-standalone-button');
     importStandaloneStatusDiv = document.getElementById('import-standalone-status');
-    statusMessageDiv = document.getElementById('status-message'); // Assign the main status div
-
+    statusMessageDiv = document.getElementById('status-message');
     budgetViewSection = document.getElementById('budget-view');
     budgetViewMonthSpan = document.getElementById('budget-view-month');
     budgetTbody = document.getElementById('budget-tbody');
@@ -298,27 +508,22 @@ async function initializeApp() {
     totalSpentValueTd = document.getElementById('total-spent-value');
     totalAvailableValueTd = document.getElementById('total-available-value');
     budgetNoDataMsg = document.getElementById('budget-no-data');
-
     chartsSection = document.getElementById('charts-section');
     spendingChartCanvas = document.getElementById('spendingPieChart');
     chartMonthDisplaySpan = document.getElementById('chart-month-display');
     chartNoDataMsg = document.getElementById('chart-no-data');
-
-    // Chart Refs Assignment
     showPieChartBtn = document.getElementById('show-pie-chart-btn');
     showBarChartBtn = document.getElementById('show-bar-chart-btn');
     spendingPieChartArea = document.getElementById('spending-pie-chart-area');
-    incomeExpenseBarChartArea = document.getElementById('income-expense-bar-chart-area'); 
+    incomeExpenseBarChartArea = document.getElementById('income-expense-bar-chart-area');
     incomeExpenseBarChartCanvas = document.getElementById('incomeExpenseBarChart');
     trendChartNoDataMsg = document.getElementById('trend-chart-no-data');
-
     menuToggleButton = document.getElementById('menu-toggle');
     menuCloseButton = document.getElementById('menu-close');
     sideMenu = document.getElementById('side-menu');
     overlay = document.getElementById('overlay');
-    navLinks = document.querySelectorAll('.nav-link'); 
+    navLinks = document.querySelectorAll('.nav-link');
     mainSections = document.querySelectorAll('.main-section');
-
     manageAccountsSection = document.getElementById('manage-accounts-section');
     manageAccountsContent = document.getElementById('manage-accounts-content');
     addAccountForm = document.getElementById('add-account-form');
@@ -327,7 +532,6 @@ async function initializeApp() {
     newAccountBalanceInput = document.getElementById('new-account-balance');
     addAccountStatusDiv = document.getElementById('add-account-status');
     existingAccountsList = document.getElementById('existing-accounts-list');
-
     manageCategoriesSection = document.getElementById('manage-categories-section');
     manageCategoriesContent = document.getElementById('manage-categories-content');
     addCategoryForm = document.getElementById('add-category-form');
@@ -335,12 +539,10 @@ async function initializeApp() {
     newCategoryGroupSelect = document.getElementById('new-category-group');
     addCategoryStatusDiv = document.getElementById('add-category-status');
     existingCategoriesListDiv = document.getElementById('existing-categories-list');
-
     budgetPrevMonthBtn = document.getElementById('budget-prev-month');
     budgetNextMonthBtn = document.getElementById('budget-next-month');
     chartPrevMonthBtn = document.getElementById('chart-prev-month');
     chartNextMonthBtn = document.getElementById('chart-next-month');
-
     yearlySummarySection = document.getElementById('yearly-summary-section');
     yearlySummaryYearSpan = document.getElementById('yearly-summary-year');
     yearlySummaryTbody = document.getElementById('yearly-summary-tbody');
@@ -348,14 +550,25 @@ async function initializeApp() {
     yearlySummaryNoDataMsg = document.getElementById('yearly-summary-no-data');
     yearlyPrevYearBtn = document.getElementById('yearly-prev-year');
     yearlyNextYearBtn = document.getElementById('yearly-next-year');
-
     welcomeGuideSection = document.getElementById('welcome-guide');
     welcomeGoAccountsButton = document.getElementById('welcome-go-accounts');
     welcomeGoCategoriesButton = document.getElementById('welcome-go-categories');
-    welcomeDismissButton = document.getElementById('welcome-dismiss'); 
+    welcomeDismissButton = document.getElementById('welcome-dismiss');
+    // Settings elements
+    settingsSection = document.getElementById('settings-section');
+    languageSelect = document.getElementById('language-select');
+    settingsStatusDiv = document.getElementById('settings-status');
     // <<< --- END OF DOM ELEMENT ASSIGNMENTS --- >>>
 
+     // --- Load Default Translations First (critical before DB load reads lang pref) ---
+     await loadTranslations(currentLanguage); // Load default 'en'
 
+     // --- Now load data from DB (this will read language preference) ---
+     // loadDataFromDB will call processBudgetData which depends on translations
+     // It will also load the *actual* preferred language and reload translations if needed
+     await loadDataFromDB();
+
+    // --- Setup Listeners ---
     if (currentYearSpan) currentYearSpan.textContent = new Date().getFullYear();
     setupMenuListeners();
     setupNavLinks();
@@ -366,17 +579,28 @@ async function initializeApp() {
     setupNavButtonListeners();
     setupBudgetEditingListener();
     setupYearlyNavButtonListeners();
-    setupChartToggleButtons(); 
+    setupChartToggleButtons();
     setupDashboardWelcomeListeners();
+    setupSettingsListeners(); // Add settings listener
+    
+    // --- Initial UI Setup (Post-DB Load & Translation) ---
+    if (txTypeSelect) updateAddFormForTxType(txTypeSelect.value); // Set initial form state
+    applyTranslationsToStaticElements(); 
 
-    await loadDataFromDB();
-
-    // Default to dashboard after load
-    showSection('dashboard-summary'); 
-
-    if(txTypeSelect) updateAddFormForTxType(txTypeSelect.value);
+    // Default to dashboard after load (showSection handles translations for dynamic parts)
+    showSection('dashboard-summary');
 
     console.log("Application initialization complete.");
+}
+
+/** Setup listener for language select change */
+function setupSettingsListeners() {
+    if (languageSelect) {
+        languageSelect.addEventListener('change', handleLanguageChange);
+        console.log("Settings listeners attached."); // Added confirmation
+    } else {
+        console.warn("Could not attach settings listener: languageSelect not found.");
+    }
 }
 
 /** Sets up event listeners for the welcome guide buttons INSIDE the dashboard. */
@@ -809,202 +1033,169 @@ function displayExistingAccounts(accounts) {
     });
 }
 
-/**
- * Populates the 'Category Group' dropdown in the Add Category form.
- * @param {object} groupsData The category groups object { categoryName: groupName }.
- * @param {Array<string>} categories List of all categories.
- */
+// Helper map for category group tokens
+const categoryGroupTokens = {
+    'category.group.income': 'Income',
+    'category.group.expenses': 'Expenses',
+    'category.group.bills': 'Bills',
+    'category.group.savings': 'Savings Goals',
+    'category.group.archived': 'Archived',
+    'category.group.unassigned': 'Unassigned' // Use token for unassigned display
+};
+
+/** Populates the 'Category Group' dropdown in the Add Category form */
 function populateCategoryGroupDropdown(groupsData = {}, categories = []) {
     if (!newCategoryGroupSelect) return;
-    newCategoryGroupSelect.innerHTML = ''; // Clear existing options
+    newCategoryGroupSelect.innerHTML = '';
 
     const uniqueGroups = new Set();
-    // Add groups associated with existing categories
-    categories.forEach(cat => {
-        if (groupsData[cat]) {
-            uniqueGroups.add(groupsData[cat]);
-        }
-    });
-     // Add common default groups if they aren't already present
-     ['Income', 'Expenses', 'Bills', 'Savings Goals', 'Archived'].forEach(g => uniqueGroups.add(g));
-     // Special internal/unwanted groups (remove if accidentally added)
-     uniqueGroups.delete(UNKNOWN_INCOME_SOURCE);
-     uniqueGroups.delete(null); // Remove null/undefined if present
-     uniqueGroups.delete(undefined);
-
+    // Add groups associated with existing categories (use raw group names from data)
+    categories.forEach(cat => { if (groupsData[cat]) uniqueGroups.add(groupsData[cat]); });
+    // Add common default groups (use raw English names for internal logic)
+    ['Income', 'Expenses', 'Bills', 'Savings Goals', 'Archived'].forEach(g => uniqueGroups.add(g));
+    uniqueGroups.delete(UNKNOWN_INCOME_SOURCE); uniqueGroups.delete(null); uniqueGroups.delete(undefined);
 
     const sortedGroups = Array.from(uniqueGroups).sort();
 
-    // Add the default "Select Group" option
-    newCategoryGroupSelect.add(new Option('-- Select Group --', ''));
+    // Add the default "Select Group" option (translated)
+    newCategoryGroupSelect.add(new Option(translate('categories.manage.add.select.group.default'), ''));
 
-    // Add each unique group
+    // Add each unique group, translating the display name
     sortedGroups.forEach(groupName => {
-        if (groupName) { // Ensure group name is not empty
-            newCategoryGroupSelect.add(new Option(groupName, groupName));
+        if (groupName) {
+            // Find the token associated with this raw group name
+            const groupTokenKey = Object.keys(categoryGroupTokens).find(key => categoryGroupTokens[key] === groupName);
+            const displayGroupName = groupTokenKey ? translate(groupTokenKey) : groupName; // Translate if token found, else use raw name
+            newCategoryGroupSelect.add(new Option(displayGroupName, groupName)); // Display translated, value is raw group name
         }
     });
 }
 
-/**
- * Displays existing categories, grouped visually, with controls to change groups.
- * @param {Array<string>} categories List of category names.
- * @param {object} groupsData The category groups object { categoryName: groupName }.
- */
+/** Displays existing categories, grouped visually */
 function displayExistingCategories(categories = [], groupsData = {}) {
     if (!existingCategoriesListDiv) return;
-    existingCategoriesListDiv.innerHTML = ''; // Clear placeholder/previous list
+    existingCategoriesListDiv.innerHTML = '';
 
     if (!categories || categories.length === 0) {
-        existingCategoriesListDiv.innerHTML = '<p>No categories added yet.</p>';
-        return;
+        existingCategoriesListDiv.innerHTML = `<p>${translate('categories.manage.existing.none')}</p>`; return;
     }
 
-    // --- Get list of available group names (for the dropdowns) ---
-    const availableGroups = new Set();
-    Object.values(groupsData).forEach(group => { if(group) availableGroups.add(group); });
-     // Add common default groups if they aren't already present from data
-     ['Income', 'Expenses', 'Bills', 'Savings Goals', 'Archived'].forEach(g => availableGroups.add(g));
-     availableGroups.delete(null); // Remove null/undefined if present
-     availableGroups.delete(undefined);
-    const sortedAvailableGroups = Array.from(availableGroups).sort();
-    // --- --- ---
+    // --- Get list of available RAW group names (for dropdown values) ---
+    const availableRawGroups = new Set();
+    Object.values(groupsData).forEach(group => { if(group) availableRawGroups.add(group); });
+    ['Income', 'Expenses', 'Bills', 'Savings Goals', 'Archived'].forEach(g => availableRawGroups.add(g));
+    availableRawGroups.delete(null); availableRawGroups.delete(undefined);
+    const sortedAvailableRawGroups = Array.from(availableRawGroups).sort();
 
+    // --- Group categories by RAW group name ---
     const categoriesByGroup = {};
     categories.forEach(cat => {
-        const group = groupsData[cat] || 'Unassigned';
-        if (!categoriesByGroup[group]) {
-            categoriesByGroup[group] = [];
-        }
+        const group = groupsData[cat] || 'Unassigned'; // Raw group name or 'Unassigned'
+        if (!categoriesByGroup[group]) categoriesByGroup[group] = [];
         categoriesByGroup[group].push(cat);
     });
 
-    const sortedGroupNames = Object.keys(categoriesByGroup).sort((a, b) => { /* ... keep existing sort logic ... */
+    // --- Sort group names based on RAW name logic ---
+    const sortedGroupNames = Object.keys(categoriesByGroup).sort((a, b) => {
+        const order = { "Savings Goals": 1, "Archived": 2 }; // Order raw names
         if (a === 'Unassigned') return 1; if (b === 'Unassigned') return -1;
-        const order = { "Savings Goals": 1, "Archived": 2 };
         const orderA = order[a] || 0; const orderB = order[b] || 0;
         if (orderA !== orderB) return orderA - orderB;
         return a.localeCompare(b);
     });
 
-    // Create HTML for each group
-    sortedGroupNames.forEach(groupName => {
-        const groupDiv = document.createElement('div');
-        groupDiv.className = 'category-group-block';
-
+    // --- Create HTML for each group ---
+    sortedGroupNames.forEach(groupName => { // groupName is RAW here
+        const groupDiv = document.createElement('div'); groupDiv.className = 'category-group-block';
         const groupHeading = document.createElement('h4');
-        groupHeading.textContent = groupName;
+        // Translate the group heading for display
+        const groupTokenKey = Object.keys(categoryGroupTokens).find(key => categoryGroupTokens[key] === groupName);
+        groupHeading.textContent = groupTokenKey ? translate(groupTokenKey) : groupName;
         groupDiv.appendChild(groupHeading);
 
         const categoryList = document.createElement('ul');
-        categoriesByGroup[groupName].sort().forEach(catName => { // Sort categories within group
-            const listItem = document.createElement('li');
-            listItem.classList.add('category-list-item'); // Add class for styling/selection
-
-            // 1. Category Name Span
+        categoriesByGroup[groupName].sort().forEach(catName => { // catName is RAW
+            const listItem = document.createElement('li'); listItem.classList.add('category-list-item');
             const nameSpan = document.createElement('span');
-            nameSpan.textContent = catName;
-            nameSpan.className = 'category-name';
-            listItem.appendChild(nameSpan);
+            // Translate category name if standard, otherwise use raw
+            let displayCatName = catName;
+            if(catName === UNCATEGORIZED) displayCatName = translate('category.uncategorized');
+            nameSpan.textContent = displayCatName;
+            nameSpan.className = 'category-name'; listItem.appendChild(nameSpan);
 
-            // 2. Group Selection Dropdown
-            const groupSelect = document.createElement('select');
-            groupSelect.className = 'category-group-changer';
-            groupSelect.dataset.categoryName = catName; // Store category name for the handler
+            // Group Selection Dropdown
+            const groupSelect = document.createElement('select'); groupSelect.className = 'category-group-changer';
+            groupSelect.dataset.categoryName = catName; // Store RAW category name
 
-            // Add options to the dropdown
-            sortedAvailableGroups.forEach(availGroup => {
-                const option = new Option(availGroup, availGroup);
-                if (availGroup === (groupsData[catName] || '')) { // Select the current group
-                    option.selected = true;
-                }
+            // Add options (Display translated, Value is raw)
+            sortedAvailableRawGroups.forEach(availGroupRaw => {
+                const groupTokenKey = Object.keys(categoryGroupTokens).find(key => categoryGroupTokens[key] === availGroupRaw);
+                const displayGroupName = groupTokenKey ? translate(groupTokenKey) : availGroupRaw;
+                const option = new Option(displayGroupName, availGroupRaw); // Display translated, value raw
+                if (availGroupRaw === (groupsData[catName] || '')) option.selected = true;
                 groupSelect.add(option);
             });
-             // Add "Unassigned" option if it wasn't in the main list
-             if (!sortedAvailableGroups.includes('Unassigned')) {
-                 const unassignedOption = new Option('Unassigned', ''); // Use empty value for Unassigned
-                 if (groupName === 'Unassigned') {
-                     unassignedOption.selected = true;
-                 }
-                 groupSelect.add(unassignedOption);
-             }
+            // Add "Unassigned" option (Display translated, Value is empty string)
+             const unassignedDisplay = translate('category.group.unassigned');
+             const unassignedOption = new Option(unassignedDisplay, ''); // Value is empty string
+             if (groupName === 'Unassigned') unassignedOption.selected = true; // Check against RAW group name
+             groupSelect.add(unassignedOption);
+
 
             listItem.appendChild(groupSelect);
 
-            // 3. Change Button
+            // Change Button (Translate text)
             const changeButton = document.createElement('button');
-            changeButton.textContent = 'Update';
+            changeButton.textContent = translate('categories.manage.button.update');
             changeButton.className = 'button button-small category-group-update-button';
-            changeButton.dataset.categoryName = catName; // Store category name
-            changeButton.addEventListener('click', handleChangeCategoryGroup); // Attach listener directly
+            changeButton.dataset.categoryName = catName; // Store RAW name
+            changeButton.addEventListener('click', handleChangeCategoryGroup);
             listItem.appendChild(changeButton);
 
-            // 4. Status Div (Optional, for feedback per item)
-            const itemStatusDiv = document.createElement('div');
-            itemStatusDiv.className = 'item-status';
-            itemStatusDiv.id = `status-cat-${catName.replace(/\s+/g, '-')}`; // Unique ID for status
+            // Status Div
+            const itemStatusDiv = document.createElement('div'); itemStatusDiv.className = 'item-status';
+            itemStatusDiv.id = `status-cat-${catName.replace(/\s+/g, '-')}`;
             listItem.appendChild(itemStatusDiv);
-
 
             categoryList.appendChild(listItem);
         });
         groupDiv.appendChild(categoryList);
-
         existingCategoriesListDiv.appendChild(groupDiv);
     });
 }
 
-/**
- * Handles the click event for the "Update" button next to an existing category.
- * @param {Event} event The button click event.
- */
+/** Handles updating category group (uses translated status messages) */
 async function handleChangeCategoryGroup(event) {
     event.preventDefault();
-
     const button = event.currentTarget;
-    const categoryName = button.dataset.categoryName;
+    const categoryName = button.dataset.categoryName; // Raw category name
     const listItem = button.closest('.category-list-item');
     const groupSelect = listItem?.querySelector('.category-group-changer');
     const itemStatusDiv = listItem?.querySelector('.item-status');
+    if (!categoryName || !groupSelect || !itemStatusDiv) return;
 
-    if (!categoryName || !groupSelect || !itemStatusDiv) {
-        console.error("Could not find necessary elements for group change.");
-        return;
-    }
+    const newGroupNameRaw = groupSelect.value; // Get RAW group name from value
 
-    const newGroupName = groupSelect.value;
+    console.log(`Attempting to change group for "${categoryName}" to "${newGroupNameRaw || 'Unassigned'}"`);
 
-    // Log the values being processed
-    console.log(`Attempting to change group for "${categoryName}" to "${newGroupName}"`);
-
-    updateStatusMessage(itemStatusDiv, "Updating...", "info");
-    button.disabled = true;
-    groupSelect.disabled = true; // Disable dropdown during update
+    // Use translated status messages
+    updateStatusMessage(itemStatusDiv, translate('categories.manage.update.status.updating'), "info");
+    button.disabled = true; groupSelect.disabled = true;
 
     try {
-        await updateCategoryGroup(categoryName, newGroupName); // Call DB function
+        await updateCategoryGroup(categoryName, newGroupNameRaw); // Use RAW names for DB update
+        updateStatusMessage(itemStatusDiv, translate('categories.manage.update.status.updated'), "success");
+        await loadDataFromDB(); // Reload data (will re-apply translations)
 
-        updateStatusMessage(itemStatusDiv, "Group updated!", "success");
-
-        console.log("Category group updated in DB, reloading data to refresh UI...");
-        await loadDataFromDB(); 
-
-        if (localBudgetData && localBudgetData.category_groups) {
-             if (newGroupName === '') { // Handle "Unassigned" case
-                 delete localBudgetData.category_groups[categoryName];
-             } else {
-                 localBudgetData.category_groups[categoryName] = newGroupName;
-             }
-             console.log("In-memory category group data updated.");
+        // Update in-memory data (using raw names)
+        if (localBudgetData?.category_groups) {
+             if (newGroupNameRaw === '') delete localBudgetData.category_groups[categoryName];
+             else localBudgetData.category_groups[categoryName] = newGroupNameRaw;
         }
-
     } catch (error) {
         console.error(`Failed to update group for ${categoryName}:`, error);
-        updateStatusMessage(itemStatusDiv, `Error: ${error}`, "error");
-        // Re-enable controls on error
-        button.disabled = false;
-        groupSelect.disabled = false;
-    } finally {
+        updateStatusMessage(itemStatusDiv, translate('categories.manage.update.status.error', { error: error }), "error");
+        button.disabled = false; groupSelect.disabled = false;
     }
 }
 
@@ -1195,7 +1386,7 @@ function cancelBudgetValue(input) {
 
 /**
  * Updates a specific category's budgeted amount for a given period in IndexedDB,
- * and adjusts Ready To Assign accordingly.
+ * and adjusts Ready To Assign accordingly, preserving other metadata.
  * @param {string} period The budget period (YYYY-MM).
  * @param {string} categoryName The name of the category.
  * @param {number} newAmount The new budgeted amount.
@@ -1209,53 +1400,58 @@ function updateBudgetAmountInDB(period, categoryName, newAmount) {
         const bpStore = transaction.objectStore(BUDGET_PERIOD_STORE_NAME);
         const metaStore = transaction.objectStore(METADATA_STORE_NAME);
 
-        let currentRTA = 0.0;
         let originalBudgetAmount = 0.0;
+        let fullMetadata = null; // To store the complete metadata object
 
-        // --- Get current RTA ---
-        const metaGetReq = metaStore.get('appData');
-        metaGetReq.onerror = (event) => reject(`Failed to read metadata: ${event.target.error}`);
-        metaGetReq.onsuccess = (event) => {
-            currentRTA = event.target.result?.ready_to_assign || 0.0;
+        // --- Get the current budget period data first ---
+        const bpGetReq = bpStore.get(period);
+        bpGetReq.onerror = (event) => reject(`Failed to read budget period ${period}: ${event.target.error}`);
+        bpGetReq.onsuccess = (event) => {
+            let budgetPeriodData = event.target.result;
+            if (!budgetPeriodData) {
+                budgetPeriodData = { period: period, budget: {} };
+                originalBudgetAmount = 0.0;
+            } else {
+                originalBudgetAmount = budgetPeriodData.budget?.[categoryName] || 0.0;
+            }
+            if (!budgetPeriodData.budget) {
+                budgetPeriodData.budget = {};
+            }
 
-            // --- Get current budget period data ---
-            const bpGetReq = bpStore.get(period);
-            bpGetReq.onerror = (event) => reject(`Failed to read budget period ${period}: ${event.target.error}`);
-            bpGetReq.onsuccess = (event) => {
-                let budgetPeriodData = event.target.result;
+            // --- Now get the full metadata object ---
+            const metaGetReq = metaStore.get('appData');
+            metaGetReq.onerror = (event) => reject(`Failed to read metadata: ${event.target.error}`);
+            metaGetReq.onsuccess = (event) => {
+                // Store the full metadata object, or create a default structure if none exists
+                fullMetadata = event.target.result || { key: 'appData', ready_to_assign: 0.0, welcomeDismissed: false, language: 'en' };
 
-                if (!budgetPeriodData) {
-                    budgetPeriodData = { period: period, budget: {} };
-                    originalBudgetAmount = 0.0;
-                } else {
-                    originalBudgetAmount = budgetPeriodData.budget?.[categoryName] || 0.0;
-                }
-
-                if (!budgetPeriodData.budget) {
-                    budgetPeriodData.budget = {};
-                }
+                // --- Proceed with updating the budget amount for the category ---
                 budgetPeriodData.budget[categoryName] = newAmount;
 
-                // --- Save the updated budget period data ---
                 const bpPutReq = bpStore.put(budgetPeriodData);
                 bpPutReq.onerror = (event) => reject(`Failed to save budget period ${period}: ${event.target.error}`);
                 bpPutReq.onsuccess = () => {
                     console.log(`Budget updated for ${categoryName} in ${period} to ${newAmount}`);
 
-                    // --- Calculate change and update RTA ---
+                    // --- Calculate the RTA change based on budget change ---
                     const delta = newAmount - originalBudgetAmount;
+                    // Ensure ready_to_assign exists before calculation
+                    const currentRTA = fullMetadata.ready_to_assign || 0.0;
                     const newRTA = currentRTA - delta;
 
-                    // --- Save updated RTA ---
-                    const updatedMetadata = { key: 'appData', ready_to_assign: newRTA };
-                    const metaPutReq = metaStore.put(updatedMetadata);
+                    // --- Update the RTA property on the fullMetadata object ---
+                    fullMetadata.ready_to_assign = newRTA;
+
+                    // --- Save the MODIFIED FULL metadata object back ---
+                    const metaPutReq = metaStore.put(fullMetadata);
                     metaPutReq.onerror = (event) => reject(`Budget saved, but failed to update RTA: ${event.target.error}`);
                     metaPutReq.onsuccess = () => {
-                        console.log(`RTA updated successfully to: ${newRTA} (change: ${-delta})`);
+                        console.log(`RTA updated successfully to: ${newRTA} (change: ${-delta}), other metadata preserved.`);
+                        // Transaction will complete after this...
                     };
-                };
-            };
-        };
+                }; // end bpPutReq.onsuccess
+            }; // end metaGetReq.onsuccess
+        }; // end bpGetReq.onsuccess
 
         transaction.oncomplete = () => {
             console.log("Update budget amount transaction complete.");
@@ -1277,7 +1473,7 @@ async function processBudgetData(data, dismissed) { // Added 'dismissed' paramet
     console.log(`Processing budget data... Dismissed status: ${dismissed}`);
 
     // --- Reset month/year state ---
-    currentBudgetMonth = null; // etc... reset all relevant state variables
+    currentBudgetMonth = null; 
     currentChartMonth = null;
     earliestDataMonth = null;
     latestDataMonth = null;
@@ -1291,7 +1487,6 @@ async function processBudgetData(data, dismissed) { // Added 'dismissed' paramet
     if (!data) {
         console.warn("processBudgetData called with null data (load failed).");
         clearDataDisplay();
-        // ... (update views with default periods/years) ...
         updateBudgetView(getCurrentRealMonth());
         updateChartView(getCurrentRealMonth());
         updateTrendChartView();
@@ -1315,7 +1510,7 @@ async function processBudgetData(data, dismissed) { // Added 'dismissed' paramet
     }
 
     // --- Data exists, proceed with processing ---
-    data.accounts = data.accounts || {}; // etc... ensure structure exists
+    data.accounts = data.accounts || {}; 
     data.categories = data.categories || [];
     data.transactions = data.transactions || [];
     data.budget_periods = data.budget_periods || {};
@@ -1327,7 +1522,6 @@ async function processBudgetData(data, dismissed) { // Added 'dismissed' paramet
 
     try {
         // --- Determine date range ---
-        // ... (find earliest/latest months/years) ...
         earliestDataMonth = findEarliestMonth(allTransactionsForDisplay);
         latestDataMonth = findLatestMonth(allTransactionsForDisplay);
         earliestDataYear = findEarliestYear(allTransactionsForDisplay);
@@ -1337,7 +1531,6 @@ async function processBudgetData(data, dismissed) { // Added 'dismissed' paramet
 
 
         // --- Populate Static UI elements ---
-        // ... (populate filters, existing accounts/categories) ...
         populateAccountFilter(data.accounts, [filterAccountSelect, txAccountSelect]);
         populateCategoryFilter(
             data.categories || [],
@@ -1399,7 +1592,6 @@ async function processBudgetData(data, dismissed) { // Added 'dismissed' paramet
         console.error("Error updating UI:", uiError);
         updateStatus(`Error displaying data: ${uiError.message}`, "error");
         clearDataDisplay();
-        // ... (update views with defaults) ...
         updateBudgetView(getCurrentRealMonth());
         updateChartView(getCurrentRealMonth());
         updateTrendChartView();
@@ -2141,7 +2333,7 @@ function updateYearlyNavButtonStates(displayedYear) {
  */
 function calculateYearlySummaryData(year, transactions = [], categories = [], groupsData = {}) {
     const yearPrefix = year.toString();
-    const monthlyData = {}; // { category: { '01': amount, '02': amount, ..., 'total': amount } }
+    const monthlyData = {}; 
     const monthlyTotals = { income: Array(12).fill(0.0), expense: Array(12).fill(0.0) };
 
     // 1. Filter transactions for the year and aggregate by category/month
@@ -2249,156 +2441,123 @@ function calculateYearlySummaryData(year, transactions = [], categories = [], gr
 }
 
 
-/**
- * Helper to render a total row (Income or Expenses) in the yearly summary table tbody.
- * @param {HTMLTableSectionElement} tbody The table body element.
- * @param {string} label The text label for the row (e.g., "Total Income").
- * @param {Array<number>} monthlyTotals Array of 12 monthly total amounts.
- * @param {number} yearlyTotal The overall total for the year.
- * @param {boolean} isIncomeTotal True if this is the income total row, false for expense total.
- */
-function renderYearlyTotalRow(tbody, label, monthlyTotals, yearlyTotal, isIncomeTotal) {
-    const tr = tbody.insertRow();
-    tr.className = 'yearly-total-row'; // Class for potential styling
-
-    // Label Cell (using TH for semantic emphasis)
-    const cellLabel = document.createElement('th'); // Use TH for the row header
-    cellLabel.textContent = label;
-    cellLabel.style.textAlign = 'left';
-    cellLabel.style.fontWeight = 'bold';
+/** Helper to render a total row (Income or Expenses) */
+function renderYearlyTotalRow(tbody, labelToken, monthlyTotals, yearlyTotal, isIncomeTotal) {
+    const tr = tbody.insertRow(); tr.className = 'yearly-total-row';
+    const cellLabel = document.createElement('th');
+    cellLabel.textContent = translate(labelToken); // Translate the label
+    cellLabel.style.textAlign = 'left'; cellLabel.style.fontWeight = 'bold';
     tr.appendChild(cellLabel);
-
-    // Monthly Totals Cells
-    monthlyTotals.forEach(amount => {
-        const cell = tr.insertCell();
-        cell.textContent = formatCurrency(amount);
-        cell.style.fontWeight = 'bold';
-        let currencyClass = '';
-        if (isIncomeTotal) {
-            // Style income totals like income (green if positive)
-            currencyClass = getCurrencyClass(amount, true);
-        } else {
-            // Style expense totals like expenses (red if positive net expense, green if negative net expense/net refund)
-            currencyClass = amount > 0.005 ? 'negative-currency' : (amount < -0.005 ? 'positive-currency' : 'zero-currency');
-        }
-        cell.className = `currency ${currencyClass}`;
+    // Monthly totals (formatting stays same)
+    monthlyTotals.forEach(amount => { 
+         const cell = tr.insertCell(); cell.textContent = formatCurrency(amount); cell.style.fontWeight = 'bold';
+         let currencyClass = isIncomeTotal ? getCurrencyClass(amount, true) : (amount > 0.005 ? 'negative-currency' : (amount < -0.005 ? 'positive-currency' : 'zero-currency'));
+         cell.className = `currency ${currencyClass}`;
     });
-
-    // Yearly Total Cell
-    const cellYearlyTotal = tr.insertCell();
-    cellYearlyTotal.textContent = formatCurrency(yearlyTotal);
-    cellYearlyTotal.style.fontWeight = 'bold';
-    let totalClass = '';
-     if (isIncomeTotal) {
-         totalClass = getCurrencyClass(yearlyTotal, true);
-     } else {
-         totalClass = yearlyTotal > 0.005 ? 'negative-currency' : (yearlyTotal < -0.005 ? 'positive-currency' : 'zero-currency');
-     }
+    // Yearly total (formatting stays same)
+    const cellYearlyTotal = tr.insertCell(); cellYearlyTotal.textContent = formatCurrency(yearlyTotal); cellYearlyTotal.style.fontWeight = 'bold';
+    let totalClass = isIncomeTotal ? getCurrencyClass(yearlyTotal, true) : (yearlyTotal > 0.005 ? 'negative-currency' : (yearlyTotal < -0.005 ? 'positive-currency' : 'zero-currency'));
     cellYearlyTotal.className = `currency ${totalClass}`;
-
 }
 
-/**
- * Renders the calculated yearly summary data into the HTML table.
- * @param {number} year The year being displayed.
- * @param {object|null} summaryData The structured data from calculateYearlySummaryData, or null.
- */
+/** Renders the yearly summary table */
 function renderYearlySummaryTable(year, summaryData) {
     const theadMonthsRow = document.getElementById('yearly-summary-thead-months');
-
-    // Always clear previous content
     if (yearlySummaryTbody) yearlySummaryTbody.innerHTML = '';
     if (yearlySummaryTfoot) yearlySummaryTfoot.innerHTML = '';
     if (yearlySummaryYearSpan) yearlySummaryYearSpan.textContent = year || '--';
     if (yearlySummaryNoDataMsg) yearlySummaryNoDataMsg.classList.add('hidden');
-    if (theadMonthsRow) theadMonthsRow.innerHTML = ''; // Clear headers too
+    if (theadMonthsRow) theadMonthsRow.innerHTML = '';
 
-    // Check if data exists and table elements are present
+    // Render Headers (uses translate)
+    if (theadMonthsRow) renderYearlyHeaders(theadMonthsRow);
+
     if (!summaryData || (!summaryData.incomeRows.length && !summaryData.expenseRows.length)) {
-         if (yearlySummaryNoDataMsg) yearlySummaryNoDataMsg.classList.remove('hidden');
-         if (yearlySummaryTbody) yearlySummaryTbody.innerHTML = `<tr><td colspan="14">No transaction data found for ${year}.</td></tr>`; // Update colspan
+        if (yearlySummaryNoDataMsg) {
+             yearlySummaryNoDataMsg.textContent = translate('yearly.table.noData', { year: year }); // Use translated message
+             yearlySummaryNoDataMsg.classList.remove('hidden');
+        }
+        if (yearlySummaryTbody) yearlySummaryTbody.innerHTML = `<tr><td colspan="14">${translate('yearly.table.noData', { year: year })}</td></tr>`;
         console.warn("No yearly summary data to render for year:", year);
-         // Still render headers for empty state
-         if (theadMonthsRow) renderYearlyHeaders(theadMonthsRow);
         return;
     }
-     if (!yearlySummaryTbody || !yearlySummaryTfoot || !theadMonthsRow) {
-         console.error("Yearly summary table elements (tbody, tfoot, thead row) not found.");
-         return;
-     }
-    // Hide no-data message if we have *any* data object
+
+    if (!yearlySummaryTbody || !yearlySummaryTfoot || !theadMonthsRow) {
+        console.error("Yearly summary table elements (tbody, tfoot, thead row) not found.");
+        return;
+    }
     if (yearlySummaryNoDataMsg) yearlySummaryNoDataMsg.classList.add('hidden');
 
-    // 1. Render Headers
-    renderYearlyHeaders(theadMonthsRow);
-
-    // 2. Render Income Rows
-    summaryData.incomeRows.forEach(row => {
-        renderYearlyCategoryRow(yearlySummaryTbody, row, true); // isIncome = true
-    });
-    if (summaryData.incomeRows.length > 0) { // Only show if there was income data
-        renderYearlyTotalRow(
-            yearlySummaryTbody,
-            "Total Income",
-            summaryData.monthlyIncomeTotals,
-            summaryData.yearlyIncomeTotal,
-            true // isIncomeTotal = true
-        );
+    // Render Income Rows (uses translate indirectly via helper)
+    summaryData.incomeRows.forEach(row => renderYearlyCategoryRow(yearlySummaryTbody, row, true));
+    if (summaryData.incomeRows.length > 0) {
+        renderYearlyTotalRow(yearlySummaryTbody, "yearly.table.row.totalIncome", summaryData.monthlyIncomeTotals, summaryData.yearlyIncomeTotal, true); // Use token
     }
 
-    // 3. Render Separator (if both income and expenses exist)
+    // Render Separator
     if (summaryData.incomeRows.length > 0 && summaryData.expenseRows.length > 0) {
-        const sepRow = yearlySummaryTbody.insertRow();
-        sepRow.className = 'expense-group-separator'; // Apply CSS class
-        const cell = sepRow.insertCell();
-        cell.colSpan = 14; // Span all columns
-        cell.textContent = 'Expenses';
-    } else if (summaryData.expenseRows.length > 0) {
+        const sepRow = yearlySummaryTbody.insertRow(); sepRow.className = 'expense-group-separator';
+        const cell = sepRow.insertCell(); cell.colSpan = 14;
+        cell.textContent = translate('yearly.table.group.expenses'); // Translate separator text
     }
 
-
-    // 4. Render Expense Rows
-    summaryData.expenseRows.forEach(row => {
-        renderYearlyCategoryRow(yearlySummaryTbody, row, false); // isIncome = false
-    });
-    if (summaryData.expenseRows.length > 0) { // Only show if there was expense data
-        renderYearlyTotalRow(
-            yearlySummaryTbody,
-            "Total Expenses",
-            summaryData.monthlyExpenseTotals,
-            summaryData.yearlyExpenseTotal,
-            false // isIncomeTotal = false
-        );
+    // Render Expense Rows (uses translate indirectly via helper)
+    summaryData.expenseRows.forEach(row => renderYearlyCategoryRow(yearlySummaryTbody, row, false));
+    if (summaryData.expenseRows.length > 0) {
+        renderYearlyTotalRow(yearlySummaryTbody, "yearly.table.row.totalExpenses", summaryData.monthlyExpenseTotals, summaryData.yearlyExpenseTotal, false); // Use token
     }
 
-    // 5. Render Footer (Monthly Result)
+    // Render Footer (uses translate indirectly via helper)
     renderYearlyFooter(yearlySummaryTfoot, summaryData.monthlyResults, summaryData.yearlyResult);
 }
 
+// --- Yearly Summary Rendering ---
+// Helper map for month name tokens
+const monthTokens = [
+    "yearly.table.month.jan", "yearly.table.month.feb", "yearly.table.month.mar",
+    "yearly.table.month.apr", "yearly.table.month.may", "yearly.table.month.jun",
+    "yearly.table.month.jul", "yearly.table.month.aug", "yearly.table.month.sep",
+    "yearly.table.month.oct", "yearly.table.month.nov", "yearly.table.month.dec"
+];
+
 /** Helper to render the month headers for the yearly summary table */
 function renderYearlyHeaders(theadRow) {
-     theadRow.innerHTML = ''; // Clear first
-     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-     let th = document.createElement('th'); th.textContent = 'Category'; theadRow.appendChild(th);
-     months.forEach(m => {
-         th = document.createElement('th'); th.textContent = m; theadRow.appendChild(th);
-     });
-     th = document.createElement('th'); th.textContent = 'Total'; theadRow.appendChild(th);
+    theadRow.innerHTML = '';
+    let th = document.createElement('th'); th.textContent = translate('yearly.table.header.category'); theadRow.appendChild(th);
+    monthTokens.forEach(token => {
+        th = document.createElement('th'); th.textContent = translate(token); theadRow.appendChild(th);
+    });
+    th = document.createElement('th'); th.textContent = translate('yearly.table.header.total'); theadRow.appendChild(th);
 }
 
-
-/** Helper to render a single category row in the yearly summary table */
+/**
+ * Helper to render a single category row in the yearly summary table.
+ * Only translates the special "Uncategorized" category name.
+ * @param {HTMLTableSectionElement} tbody The table body element.
+ * @param {object} rowData The category row data object.
+ * @param {boolean} isIncome Flag indicating if it's an income category.
+ */
 function renderYearlyCategoryRow(tbody, rowData, isIncome) {
     const tr = tbody.insertRow();
     const cellCat = tr.insertCell();
-    cellCat.textContent = rowData.category;
     cellCat.style.textAlign = 'left'; // Ensure category name is left-aligned
 
+    // --- Translation Logic (Only for "Uncategorized") ---
+    let displayCatName = rowData.category; // Start with the raw name from DB
+
+    // Check ONLY for the special "Uncategorized" category
+    if (rowData.category === UNCATEGORIZED) {
+        displayCatName = translate('category.uncategorized');
+    }
+    // All other category names (Salary, Groceries, user-added, etc.) will display as stored.
+
+    cellCat.textContent = displayCatName; // Set the potentially translated name
+
+    // --- Rest of the cell rendering logic (remains the same) ---
     // Monthly values
     rowData.monthly.forEach(amount => {
         const cell = tr.insertCell();
         cell.textContent = formatCurrency(amount);
-        // Income uses positive style, Expense uses negative style for positive amounts
         let currencyClass = '';
          if (isIncome) {
              currencyClass = getCurrencyClass(amount, true); // Allow positive green for income
@@ -2424,23 +2583,18 @@ function renderYearlyCategoryRow(tbody, rowData, isIncome) {
 
 /** Helper to render the footer row (Monthly Result) */
 function renderYearlyFooter(tfoot, monthlyResults, yearlyResult) {
-    tfoot.innerHTML = ''; // Clear previous footer
-    const tr = tfoot.insertRow();
-    tr.className = 'monthly-result-row'; // Apply CSS class
-
-    const cellLabel = tr.insertCell(); // Use TH for semantic meaning?
-    cellLabel.outerHTML = `<th>Monthly Result</th>`; // Change to TH
-
-    monthlyResults.forEach(result => {
-        const cell = tr.insertCell();
-        cell.textContent = formatCurrency(result);
-        cell.className = `currency ${getCurrencyClass(result, true)}`; // Allow positive results to be green
+    tfoot.innerHTML = '';
+    const tr = tfoot.insertRow(); tr.className = 'monthly-result-row';
+    // Translate label
+    tr.insertCell().outerHTML = `<th>${translate('yearly.table.footer.monthlyResult')}</th>`;
+    // Monthly results (formatting stays same)
+    monthlyResults.forEach(result => { 
+        const cell = tr.insertCell(); cell.textContent = formatCurrency(result);
+        cell.className = `currency ${getCurrencyClass(result, true)}`;
     });
-
-    const cellTotal = tr.insertCell();
-    cellTotal.textContent = formatCurrency(yearlyResult);
-    cellTotal.className = `currency ${getCurrencyClass(yearlyResult, true)}`;
-    cellTotal.style.fontWeight = 'bold'; // Make total bold
+    // Yearly result (formatting stays same)
+    const cellTotal = tr.insertCell(); cellTotal.textContent = formatCurrency(yearlyResult);
+    cellTotal.className = `currency ${getCurrencyClass(yearlyResult, true)}`; cellTotal.style.fontWeight = 'bold';
 }
 
 // --- Helper Function: Parse Formatted Currency ---
@@ -2645,45 +2799,34 @@ function renderSpendingChart(chartData) {
     spendingPieChartInstance = new Chart(ctx, {
         type: 'pie', // or 'doughnut'
         data: {
-            labels: chartData.labels,
+            labels: chartData.labels.map(label => label === 'Other' ? translate('charts.pie.otherCategory') : label), // Translate 'Other' label
             datasets: [{
-                label: 'Spending',
+                label: translate('charts.pie.datasetLabel'), // Translate dataset label
                 data: chartData.data,
-                // Chart.js provides default colors, or you can define your own array:
-                // backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#28a745', '#20c997', '#17a2b8', '#007bff', '#6f42c1', '#e83e8c'],
-                 borderWidth: 1
+                borderWidth: 1
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false, // Allow canvas resizing based on container
+            responsive: true, maintainAspectRatio: false,
             plugins: {
-                legend: {
-                    position: 'top', // Or 'bottom', 'left', 'right'
-                },
+                legend: { position: 'top' },
                 tooltip: {
                     callbacks: {
-                         // Format tooltip to show currency and percentage
                          label: function(context) {
-                            let label = context.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
-                            const value = context.parsed || 0;
-                            label += formatCurrency(value); // Add formatted currency
-
-                            // Calculate percentage
-                            const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0.0%';
-                            label += ` (${percentage})`;
-
-                            return label;
-                        }
+                             let label = context.label || ''; // Already translated label from data.labels
+                             const value = context.parsed || 0;
+                             const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                             const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                             // Use translate for the tooltip format string
+                             return translate('charts.pie.tooltip.label', {
+                                 label: label,
+                                 amount: formatCurrency(value),
+                                 percentage: percentage
+                             });
+                         }
                     }
                 },
-                title: { 
-                    display: false, // Already have h2 above
-                }
+                title: { display: false }
             }
         }
     });
@@ -2728,58 +2871,41 @@ function renderIncomeExpenseBarChart(chartData) {
     incomeExpenseBarChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: chartData.labels,
+            labels: chartData.labels, // Labels (e.g., "Jan 24") are usually fine as is
             datasets: [
                 {
-                    label: 'Income',
+                    label: translate('charts.bar.datasetLabel.income'), 
                     data: chartData.incomeData,
-                    backgroundColor: 'rgba(75, 192, 192, 0.6)', // Greenish
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    borderWidth: 1
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                    borderColor: 'rgba(75, 192, 192, 1)', borderWidth: 1
                 },
                 {
-                    label: 'Expenses',
+                    label: translate('charts.bar.datasetLabel.expenses'), 
                     data: chartData.expenseData,
-                    backgroundColor: 'rgba(255, 99, 132, 0.6)', // Reddish
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    borderWidth: 1
+                    backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                    borderColor: 'rgba(255, 99, 132, 1)', borderWidth: 1
                 }
             ]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value, index, values) {
-                            return formatCurrency(value); // Use your existing formatter
-                        }
-                    }
-                }
-            },
+            responsive: true, maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true, ticks: { callback: (value) => formatCurrency(value) } } },
             plugins: {
-                legend: {
-                    position: 'top',
-                },
+                legend: { position: 'top' },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            let label = context.dataset.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
+                            let label = context.dataset.label || ''; // Already translated label
                             const value = context.parsed.y || 0;
-                            label += formatCurrency(value); // Format tooltip value
-                            return label;
+                            // Use translate for the tooltip format string
+                            return translate('charts.bar.tooltip.label', {
+                                label: label,
+                                amount: formatCurrency(value)
+                            });
                         }
                     }
                 },
-                title: {
-                    display: false, // Already have an h3 above the chart
-                    // text: 'Income vs. Expense Trend (Last 12 Months)'
-                }
+                title: { display: false }
             }
         }
     });
@@ -2864,12 +2990,8 @@ function formatCurrency(amount) {
 }
 
 /**
- * Updates a specific status message element and optionally auto-hides success messages.
- *
- * @param {HTMLElement} element The DOM element to update (e.g., addTxStatusDiv).
- * @param {string} message The message text to display.
- * @param {'info'|'success'|'error'} type The type of message (controls styling and auto-hide).
- * @param {number} [autoHideDelay=4000] The delay in milliseconds before hiding success messages.
+ * Updates a specific status message element.
+ * Uses translate() for the message if it looks like a token key.
  */
 function updateStatusMessage(element, message, type, autoHideDelay = 4000) {
     if (!element) {
@@ -2877,38 +2999,39 @@ function updateStatusMessage(element, message, type, autoHideDelay = 4000) {
         return;
     }
 
-    // --- Clear any existing timeout for this specific element ---
-    const existingTimeoutId = element.dataset.hideTimeoutId;
-    if (existingTimeoutId) {
-        clearTimeout(parseInt(existingTimeoutId));
-        delete element.dataset.hideTimeoutId;
+    // --- Translate the message ---
+    // Simple check: does it NOT contain spaces and have dots? Assume it's a token.
+    // Or check if it starts/ends with '[' and ']' if using that fallback.
+    let displayMessage = message;
+    if (message && !message.includes(' ') && message.includes('.')) {
+        displayMessage = translate(message); // Assume it's a token
+    } else if (message && message.startsWith('[') && message.endsWith(']')) {
+         // Already a fallback token, display as is or clean up brackets?
+         // Let's display as is to show it's a fallback
+    }
+     // If message is empty, clear content
+     if (!message) {
+        displayMessage = '';
     }
 
-    // --- Set the new message and class ---
-    element.textContent = message;
-    // Ensure base classes are kept if needed, adjust if your CSS structure requires it
-    element.className = `status-${type}`; // Assumes your CSS uses status-info, status-success, status-error directly
+    const existingTimeoutId = element.dataset.hideTimeoutId;
+    if (existingTimeoutId) { clearTimeout(parseInt(existingTimeoutId)); delete element.dataset.hideTimeoutId; }
 
-    console.log(`Status [${type}] for ${element.id || 'element'}: ${message}`);
+    element.textContent = displayMessage;
+    element.className = displayMessage ? `status-${type}` : ''; // Remove class if message is empty
 
-    // --- Set a new timeout ONLY for success messages ---
-    if (type === 'success' && autoHideDelay > 0) {
+    console.log(`Status [${type}] for ${element.id || 'element'}: ${displayMessage} (Original: ${message})`);
+
+    if (type === 'success' && autoHideDelay > 0 && displayMessage) {
         const newTimeoutId = setTimeout(() => {
-            // Double-check if the message is still the one we set before clearing
-            if (element.textContent === message) {
-                element.textContent = ''; // Clear the message
-                element.className = ''; 
-                delete element.dataset.hideTimeoutId; // Clean up dataset
-            } else {
-                 delete element.dataset.hideTimeoutId; // Still clean up dataset
-            }
+            if (element.textContent === displayMessage) {
+                element.textContent = ''; element.className = '';
+                delete element.dataset.hideTimeoutId;
+            } else { delete element.dataset.hideTimeoutId; }
         }, autoHideDelay);
-
-        // Store the new timeout ID on the element's dataset
         element.dataset.hideTimeoutId = newTimeoutId;
     }
 }
-
 /** Updates the main status message area using the centralized handler. */
 function updateStatus(message, type = "info") {
     const statusElement = statusMessageDiv; // Target the main status div at the top
@@ -2920,25 +3043,28 @@ function updateStatus(message, type = "info") {
     updateStatusMessage(statusElement, message, type);
 }
 
-/** Clears the data display areas. */
+/** Clears the data display areas */
 function clearDataDisplay() {
-    if (balancesList) balancesList.innerHTML = '<li>--</li>';
+    if (balancesList) balancesList.innerHTML = `<li>${translate('general.loading')}</li>`;
     if (rtaValueElement) { rtaValueElement.textContent = '--'; rtaValueElement.className = 'summary-value zero-currency'; }
-    if (budgetViewRtaValueElement) { 
-        budgetViewRtaValueElement.textContent = '--';
-        budgetViewRtaValueElement.className = 'summary-value zero-currency';
-    }
-    if (transactionsTbody) transactionsTbody.innerHTML = '<tr><td colspan="6">No data loaded.</td></tr>';
+    if (budgetViewRtaValueElement) { budgetViewRtaValueElement.textContent = '--'; budgetViewRtaValueElement.className = 'summary-value zero-currency'; }
+    if (transactionsTbody) transactionsTbody.innerHTML = `<tr><td colspan="7">${translate('transactions.table.noData')}</td></tr>`;
     if (summaryMonthElement) summaryMonthElement.textContent = '--';
     if (summaryIncomeElement) { summaryIncomeElement.textContent = '--'; summaryIncomeElement.className = ''; }
     if (summarySpendingElement) { summarySpendingElement.textContent = '--'; summarySpendingElement.className = ''; }
-    if (budgetTbody) budgetTbody.innerHTML = '<tr><td colspan="5">No data loaded.</td></tr>';
+    if (budgetTbody) budgetTbody.innerHTML = `<tr><td colspan="5">${translate('budget.table.loading')}</td></tr>`; // Use token
     if (totalBudgetedValueTd) totalBudgetedValueTd.textContent = '--';
     if (totalSpentValueTd) totalSpentValueTd.textContent = '--';
     if (totalAvailableValueTd) totalAvailableValueTd.textContent = '--';
-    if (budgetNoDataMsg) budgetNoDataMsg.classList.remove('hidden'); // Show no data msg
+    if (budgetNoDataMsg) {
+        budgetNoDataMsg.textContent = translate('budget.table.noData'); // Translate message
+        budgetNoDataMsg.classList.remove('hidden');
+    }
     if (chartMonthDisplaySpan) chartMonthDisplaySpan.textContent = '--';
-    renderSpendingChart(null); // Clear chart
+    renderSpendingChart(null);
+    renderIncomeExpenseBarChart(null); // Clear trend chart too
+    if (chartNoDataMsg) chartNoDataMsg.textContent = translate('charts.pie.noData'); // Translate
+    if (trendChartNoDataMsg) trendChartNoDataMsg.textContent = translate('charts.bar.noData'); // Translate
 }
 
 
@@ -2947,10 +3073,10 @@ function clearDataDisplay() {
 /** Displays the account balances in the list. */
 function displayAccountBalances(accounts) {
     if (!balancesList) return;
-    balancesList.innerHTML = ''; // Clear previous balances
+    balancesList.innerHTML = '';
     const accountNames = Object.keys(accounts || {}).sort();
     if (accountNames.length === 0) {
-        balancesList.innerHTML = '<li>No accounts found.</li>';
+        balancesList.innerHTML = `<li>${translate('dashboard.accounts.none')}</li>`; // Use token
         return;
     }
     accountNames.forEach(accountName => {
@@ -2965,12 +3091,12 @@ function displayAccountBalances(accounts) {
     });
 }
 
-/** Displays the calculated dashboard summary for the latest month. */
+/** Displays the dashboard summary */
 function displayDashboardSummary(summaryData) {
     if (!summaryMonthElement || !summaryIncomeElement || !summarySpendingElement) return;
-    const month = summaryData?.latestMonth || 'N/A';
-    const income = summaryData?.income || 0;
-    const spending = summaryData?.spending || 0;
+    const month = summaryData?.latestMonth || translate('dashboard.monthSummary.value.na'); // Use token for N/A
+    const income = summaryData?.income ?? 0; // Use ?? for nullish coalescing
+    const spending = summaryData?.spending ?? 0;
     summaryMonthElement.textContent = month;
     summaryIncomeElement.textContent = formatCurrency(income);
     summaryIncomeElement.className = `currency ${getCurrencyClass(income, true)}`;
@@ -2978,207 +3104,220 @@ function displayDashboardSummary(summaryData) {
     summarySpendingElement.className = `currency ${spending > 0 ? 'negative-currency' : (spending < 0 ? 'positive-currency' : 'zero-currency')}`;
 }
 
-/** Displays the Ready to Assign value. */
+/** Displays the RTA value */
 function displayRTA(rta = 0.0) {
     const formattedRTA = formatCurrency(rta);
-    const rtaClass = `summary-value currency ${getCurrencyClass(rta, true)}`; // Allow positive green
+    const rtaClass = `summary-value currency ${getCurrencyClass(rta, true)}`;
+    const rtaText = formattedRTA !== translate('currency.invalid') ? formattedRTA : translate('general.loading'); // Show loading if invalid
 
-    // Update original dashboard RTA (will only be visible if dashboard section is shown)
     if (rtaValueElement) {
-        rtaValueElement.textContent = formattedRTA;
+        rtaValueElement.textContent = rtaText;
         rtaValueElement.className = rtaClass;
     }
-
-    // Update budget view RTA (will only be visible if budget view section is shown)
     if (budgetViewRtaValueElement) {
-        budgetViewRtaValueElement.textContent = formattedRTA;
+        budgetViewRtaValueElement.textContent = rtaText;
         budgetViewRtaValueElement.className = rtaClass;
     }
 }
 
-/**
- * Displays transactions in the table 
- * @param {Array} displayTransactions Transactions to display 
- */
+/** Displays transactions */
 function displayTransactions(displayTransactions = []) {
     if (!transactionsTbody) return;
     transactionsTbody.innerHTML = '';
 
-    let combinedForSort = displayTransactions.map(tx => ({
-        ...tx,
-        db_id: tx.id // This 'id' comes from the main transaction store's keyPath
-    }));
+    let combinedForSort = displayTransactions.map(tx => ({ ...tx, db_id: tx.id }));
 
     if (combinedForSort.length === 0) {
-        transactionsTbody.innerHTML = `<tr><td colspan="7">No transactions found.</td></tr>`;
+        transactionsTbody.innerHTML = `<tr><td colspan="7">${translate('transactions.table.noData')}</td></tr>`; // Use token
         if (noResultsMessage) noResultsMessage.classList.add('hidden');
         return;
     }
 
-     const sortedTransactions = combinedForSort.sort((a, b) => {
-         const dateA = a.date || '0000-00-00';
-         const dateB = b.date || '0000-00-00';
+     // Sort transactions (latest first)
+     const sortedTransactions = combinedForSort.sort((a, b) => { 
+         const dateA = a.date || '0000-00-00'; const dateB = b.date || '0000-00-00';
          if (dateB !== dateA) return dateB.localeCompare(dateA);
-         const idA = a.db_id || 0;
-         const idB = b.db_id || 0;
-         if (typeof idA === 'number' && typeof idB === 'number') {
-            return idB - idA;
-         }
-        return String(idB).localeCompare(String(idA));
+         const idA = a.db_id || 0; const idB = b.db_id || 0;
+         if (typeof idA === 'number' && typeof idB === 'number') return idB - idA;
+         return String(idB).localeCompare(String(idA));
      });
 
      sortedTransactions.forEach(tx => {
-        const row = transactionsTbody.insertRow();
-        const transactionDbId = tx.db_id;
-        const txType = tx.type || 'unknown'; // Use txType variable consistently
-        const isTransfer = txType === 'transfer';
+         const row = transactionsTbody.insertRow();
+         const transactionDbId = tx.db_id;
+         const txType = tx.type || 'unknown';
+         const isTransfer = txType === 'transfer';
+         const txDate = tx.date || '';
+         const fromAccount = tx.account || '';
+         const toAccountOrPayeeRaw = tx.payee || '';
+         const txCategoryRaw = isTransfer ? null : (tx.category || UNCATEGORIZED); // Use raw category name from DB
+         const txMemo = tx.memo || '';
+         const amount = tx.amount || 0;
 
-        // Store data attributes
-        const txDate = tx.date || '';
-        const fromAccount = tx.account || ''; // Account is always 'From'
-        const toAccountOrPayee = tx.payee || ''; // Payee holds 'To' account for transfers
-        const txCategory = isTransfer ? null : (tx.category || UNCATEGORIZED);
-        const txMemo = tx.memo || '';
+         // Translate category name for display if it's not internal/transfer
+         let displayCategory = translate('transactions.value.dash'); // Default dash
+         if (!isTransfer && txCategoryRaw) {
+             // Check if category is a standard one we translate
+             const categoryToken = `category.${txCategoryRaw.toLowerCase().replace(/ /g, '')}`; // Basic token generation attempt
+             displayCategory = translate(categoryToken);
+             // If translation is the token itself (fallback), use the raw name
+             if (displayCategory === `[${categoryToken}]`) {
+                 displayCategory = txCategoryRaw;
+             }
+             // Special case for Uncategorized
+             if (txCategoryRaw === UNCATEGORIZED) {
+                displayCategory = translate('category.uncategorized');
+             }
+         }
 
-        row.dataset.date = txDate;
-        row.dataset.account = fromAccount; // Store 'from' account
-        row.dataset.category = txCategory || '';
-        // Store payee/toAccount differently? Maybe store both if needed for filtering?
-        row.dataset.payee = isTransfer ? `Transfer to: ${toAccountOrPayee}` : toAccountOrPayee;
-        row.dataset.memo = txMemo;
-        row.dataset.dbId = transactionDbId;
-        row.dataset.type = txType; // Store type for potential filtering
+         // Translate Payee for transfers
+         const displayPayee = isTransfer
+             ? translate('transactions.transfer.payee', { account: toAccountOrPayeeRaw })
+             : (toAccountOrPayeeRaw || txMemo || translate('transactions.value.na')); // Use 'N/A' token
 
-        // Populate Cells (with icon)
-        const cellIcon = row.insertCell(0); cellIcon.classList.add('td-icon');
-        const icon = document.createElement('i');
-        icon.classList.add('fa-solid');
-        let iconClass = 'fa-question-circle';
-        let iconTitle = txType.charAt(0).toUpperCase() + txType.slice(1);
-        let iconColor = '#6c757d'; // Default grey
+         // Translate icon title
+         const iconTitle = translate(`transactions.type.${txType}.title`);
 
-        switch (txType) {
+         // --- Set row data attributes (use raw data) ---
+         row.dataset.date = txDate;
+         row.dataset.account = fromAccount;
+         row.dataset.category = txCategoryRaw || '';
+         row.dataset.payee = toAccountOrPayeeRaw; // Store raw payee/toAccount
+         row.dataset.memo = txMemo;
+         row.dataset.dbId = transactionDbId;
+         row.dataset.type = txType;
+
+         // --- Populate Cells ---
+         const cellIcon = row.insertCell(0); cellIcon.classList.add('td-icon');
+         const icon = document.createElement('i'); icon.classList.add('fa-solid');
+         let iconClass = 'fa-question-circle'; let iconColor = '#6c757d';
+         switch (txType) { 
             case 'income': iconClass = 'fa-arrow-down'; iconColor = '#28a745'; break;
             case 'expense': iconClass = 'fa-arrow-up'; iconColor = '#dc3545'; break;
             case 'refund': iconClass = 'fa-rotate-left'; iconColor = '#17a2b8'; break;
-            case 'transfer': iconClass = 'fa-exchange-alt'; iconColor = '#007bff'; break; // Use a different color (e.g., blue) for transfers
-        }
-        icon.classList.add(iconClass);
-        icon.style.color = iconColor;
-        icon.title = iconTitle;
-        icon.setAttribute('aria-label', iconTitle);
-        cellIcon.appendChild(icon);
+            case 'transfer': iconClass = 'fa-exchange-alt'; iconColor = '#007bff'; break;
+         }
+         icon.classList.add(iconClass); icon.style.color = iconColor;
+         icon.title = iconTitle; icon.setAttribute('aria-label', iconTitle);
+         cellIcon.appendChild(icon);
 
-        const cellDate = row.insertCell(1); cellDate.textContent = txDate || 'N/A';
-        const cellAccount = row.insertCell(2); cellAccount.textContent = fromAccount; // Always show 'From' account
-        const cellPayee = row.insertCell(3);
-        // Display "Transfer to: [Account]" for transfers, otherwise payee/memo
-        cellPayee.textContent = isTransfer ? `Transfer to: ${toAccountOrPayee}` : (toAccountOrPayee || txMemo || 'N/A');
-        if (isTransfer) cellPayee.style.fontStyle = 'italic';
+         const cellDate = row.insertCell(1); cellDate.textContent = txDate || translate('transactions.value.na');
+         const cellAccount = row.insertCell(2); cellAccount.textContent = fromAccount;
+         const cellPayee = row.insertCell(3); cellPayee.textContent = displayPayee; // Use translated payee
+         if (isTransfer) cellPayee.style.fontStyle = 'italic';
 
-        const cellCategory = row.insertCell(4); cellCategory.textContent = isTransfer ? '-' : (txCategory || '-'); // Show dash for transfers
-        const cellAmount = row.insertCell(5); cellAmount.textContent = formatCurrency(tx.amount || 0);
-        cellAmount.style.textAlign = 'right'; cellAmount.style.fontFamily = 'monospace';
-
-        // Assign currency class based on type
-        let amountClass = 'zero-currency'; // Default to neutral
-        switch(txType) {
+         const cellCategory = row.insertCell(4); cellCategory.textContent = displayCategory; // Use translated category
+         const cellAmount = row.insertCell(5); cellAmount.textContent = formatCurrency(amount);
+         cellAmount.style.textAlign = 'right'; cellAmount.style.fontFamily = 'monospace';
+         let amountClass = 'zero-currency';
+         switch(txType) { 
              case 'income': amountClass = 'positive-currency'; break;
              case 'expense': amountClass = 'negative-currency'; break;
-             case 'refund': amountClass = 'positive-currency'; break; // Treat refund amount display like income
-             // Keep transfer as neutral/zero
+             case 'refund': amountClass = 'positive-currency'; break;
          }
-        cellAmount.classList.add(amountClass);
+         cellAmount.classList.add(amountClass);
 
-         // --- DELETE BUTTON CELL ---
-        const cellAction = row.insertCell(6);
-        cellAction.classList.add('td-action');
-        if (transactionDbId !== null) {
-            const deleteButton = document.createElement('button');
-            deleteButton.classList.add('delete-tx-button');
-            deleteButton.setAttribute('aria-label', 'Delete Transaction');
-            deleteButton.title = 'Delete Transaction';
-            deleteButton.dataset.txId = transactionDbId;
+         // --- Delete Button Cell ---
+         const cellAction = row.insertCell(6); cellAction.classList.add('td-action');
+         if (transactionDbId !== null) {
+             const deleteButton = document.createElement('button');
+             deleteButton.classList.add('delete-tx-button');
+             // Translate aria-label and title
+             deleteButton.setAttribute('aria-label', translate('transactions.action.delete.aria'));
+             deleteButton.title = translate('transactions.action.delete.title');
+             deleteButton.dataset.txId = transactionDbId;
+             const deleteIcon = document.createElement('i'); deleteIcon.classList.add('fa-solid', 'fa-trash-can');
+             deleteButton.appendChild(deleteIcon);
+             deleteButton.addEventListener('click', handleDeleteTransactionClick);
+             cellAction.appendChild(deleteButton);
+         }
+     });
 
-            const deleteIcon = document.createElement('i');
-            deleteIcon.classList.add('fa-solid', 'fa-trash-can');
-            deleteButton.appendChild(deleteIcon);
-
-            deleteButton.addEventListener('click', handleDeleteTransactionClick);
-
-            cellAction.appendChild(deleteButton);
-        }
-        // --- END OF DELETE BUTTON CELL ---
-    });
-
-    if (noResultsMessage) noResultsMessage.classList.add('hidden');
+    if (noResultsMessage) {
+        noResultsMessage.classList.add('hidden');
+        noResultsMessage.textContent = translate('transactions.table.noMatch'); // Translate no match message
+    }
 }
-
-/**
- * Populates account filter dropdown(s).
- * @param {object} accounts Accounts object { accountName: balance }.
- * @param {Array<HTMLSelectElement>} selectElements Array of select elements to populate.
- */
+/** Populates account filter dropdown(s) */
 function populateAccountFilter(accounts, selectElements = []) {
     if (!accounts) return;
     const accountNames = Object.keys(accounts).sort();
     selectElements.forEach(select => {
         if (!select) return;
-        const firstOptionText = select.options.length > 0 ? select.options[0].text : "";
-        select.length = 0;
-        if(firstOptionText.toLowerCase().includes("all") || firstOptionText.toLowerCase().includes("select")){
-            select.add(new Option(firstOptionText, ""));
-        }
-        accountNames.forEach(name => select.add(new Option(name, name)));
+        // Determine the token for the first option ("All" or "Select")
+        let firstOptionToken = '';
+        if (select.id === 'filter-account') firstOptionToken = 'transactions.filter.select.account.all';
+        else if (select.id === 'tx-account') firstOptionToken = 'addForm.select.account.default';
+        else if (select.id === 'tx-transfer-to-account') firstOptionToken = 'addForm.select.toAccount.default';
+
+        const firstOptionText = firstOptionToken ? translate(firstOptionToken) : '-- Select --'; // Fallback text
+
+        select.length = 0; // Clear existing
+        // Add the translated first option
+        select.add(new Option(firstOptionText, ""));
+
+        accountNames.forEach(name => select.add(new Option(name, name))); // Account names are data, not translated
     });
 }
 
-/**
- * Populates category filter dropdown(s). Filters out internal/archived for the add form.
- * @param {Array} categories Base categories array.
- * @param {Array} transactions Transactions list (to find implicit categories).
- * @param {Array<HTMLSelectElement>} selectElements Array of select elements to populate.
- * @param {object} groupsData Category groups mapping { "Category": "Group Name" }.
- * @param {string} mode Current app mode.
- */
+/** Populates category filter dropdown(s) */
 function populateCategoryFilter(categories = [], transactions = [], selectElements = [], groupsData = {}) {
     const categorySet = new Set(categories);
     transactions.forEach(tx => {
         if (tx.category && tx.type !== 'transfer') categorySet.add(tx.category);
         else if (!tx.category && tx.type !== 'transfer') categorySet.add(UNCATEGORIZED);
     });
-    categorySet.delete(UNKNOWN_INCOME_SOURCE); // Remove internal
+    categorySet.delete(UNKNOWN_INCOME_SOURCE);
 
     let allSortedCategories = Array.from(categorySet).sort();
 
     selectElements.forEach(select => {
         if (!select) return;
-        const firstOptionText = select.options.length > 0 ? select.options[0].text : "";
+        // Determine token for first option
+        let firstOptionToken = '';
+        if (select.id === 'filter-category') firstOptionToken = 'transactions.filter.select.category.all';
+        else if (select.id === 'tx-category') firstOptionToken = 'addForm.select.category.default';
+        else if (select.id === 'new-category-group') firstOptionToken = 'categories.manage.add.select.group.default';
+
+        const firstOptionText = firstOptionToken ? translate(firstOptionToken) : '-- Select --';
+
         select.length = 0;
-        if(firstOptionText.toLowerCase().includes("all") || firstOptionText.toLowerCase().includes("select")){
-             select.add(new Option(firstOptionText, ""));
-        }
+        select.add(new Option(firstOptionText, "")); // Add translated first option
 
         let categoriesForThisSelect = allSortedCategories;
 
-        // Filter for the ADD form dropdown (exclude certain groups)
+        // Filter for ADD form dropdown
         if (select.id === 'tx-category') {
-            categoriesForThisSelect = allSortedCategories.filter(cat =>
-                groupsData[cat] !== SAVINGS_GROUP_NAME &&
-                groupsData[cat] !== ARCHIVED_GROUP_NAME
-            );
+            categoriesForThisSelect = allSortedCategories.filter(cat => {
+                 const group = groupsData[cat] || 'Unassigned';
+                 const groupNameKey = Object.keys(categoryGroupTokens).find(key => categoryGroupTokens[key] === group); // Find token key for group name
+                 return groupNameKey !== 'category.group.income' && // Ensure income is filtered if needed
+                        groupNameKey !== 'category.group.savings' &&
+                        groupNameKey !== 'category.group.archived';
+            });
         }
 
+        // Translate category names ONLY for display in dropdown
         categoriesForThisSelect.forEach(name => {
-            if (name) select.add(new Option(name, name));
+             if (name) {
+                 // Attempt to translate standard categories
+                 let displayName = name;
+                 if (name === UNCATEGORIZED) {
+                     displayName = translate('category.uncategorized');
+                 } else {
+                    // You could add more known category translations here if needed
+                    // Or just display the raw name for user-added categories
+                 }
+                 select.add(new Option(displayName, name)); // Display translated, value is raw name
+             }
         });
-    // --- After initial population, specifically update the Add Form dropdown based on its default type ---
-     if (txCategorySelect && txTypeSelect) {
-        updateCategoryDropdownForTxType(txTypeSelect.value); // Call the dynamic update function
-    }
+
+        // --- After initial population, update Add Form dropdown based on type ---
+        if (txCategorySelect && txTypeSelect) {
+            updateCategoryDropdownForTxType(txTypeSelect.value);
+        }
     });
 }
-
 /**
  * Dynamically updates the category dropdown in the Add Transaction form
  * based on the selected transaction type 
@@ -3256,7 +3395,8 @@ async function handleDeleteTransactionClick(event) {
         return;
     }
 
-    if (!confirm(`Are you sure you want to delete this transaction? This action cannot be undone.`)) {
+    // Use translate for confirmation
+    if (!confirm(translate('transactions.delete.confirm'))) {
         return; // User cancelled
     }
 
@@ -3265,16 +3405,14 @@ async function handleDeleteTransactionClick(event) {
     if (icon) { icon.classList.replace('fa-trash-can', 'fa-spinner'); icon.classList.add('fa-spin'); }
 
     try {
-        // Always delete from standalone store
         console.log(`Attempting to delete standalone transaction ID: ${transactionId}`);
-        await deleteTransactionStandalone(parseInt(transactionId, 10)); // Assume ID is numeric key
-        updateStatusMessage(statusMessageDiv, "Transaction deleted successfully.", "success");
-
+        await deleteTransactionStandalone(parseInt(transactionId, 10));
+        updateStatusMessage(statusMessageDiv, translate('transactions.delete.success'), "success"); // Use token
     } catch (error) {
         console.error("Failed to delete transaction:", error);
-        updateStatusMessage(statusMessageDiv, `Error deleting transaction: ${error}`, "error");
+        updateStatusMessage(statusMessageDiv, translate('transactions.delete.error', { error: error }), "error"); // Use token
         button.disabled = false; // Re-enable button on error
-         if (icon) { icon.classList.replace('fa-spinner', 'fa-trash-can'); icon.classList.remove('fa-spin'); }
+        if (icon) { icon.classList.replace('fa-spinner', 'fa-trash-can'); icon.classList.remove('fa-spin'); }
     }
 }
 
@@ -3291,17 +3429,15 @@ function isDataEmpty(data) {
     return accountsEmpty && categoriesEmpty;
 }
 /**
- * Adds default account and categories to an empty database.
- * @returns {Promise<void>}
+ * Seeds initial data using translated category names if possible.
+ * Needs to be async as it uses translate.
  */
-function seedInitialData() {
+async function seedInitialData() {
     console.log("Database appears empty. Seeding initial data...");
     return new Promise(async (resolve, reject) => {
         if (!db) return reject("Database not initialized for seeding.");
 
-        const storeNames = [
-            ACCOUNT_STORE_NAME, CATEGORY_STORE_NAME, GROUP_STORE_NAME, METADATA_STORE_NAME
-        ];
+        const storeNames = [ACCOUNT_STORE_NAME, CATEGORY_STORE_NAME, GROUP_STORE_NAME, METADATA_STORE_NAME];
         const transaction = db.transaction(storeNames, 'readwrite');
         const stores = {
             acc: transaction.objectStore(ACCOUNT_STORE_NAME),
@@ -3310,56 +3446,58 @@ function seedInitialData() {
             meta: transaction.objectStore(METADATA_STORE_NAME)
         };
 
-        let errorOccurred = false;
-        let writeErrors = [];
+        let errorOccurred = false; let writeErrors = [];
 
         try {
-            // --- Seed Data Definitions ---
-            const defaultAccount = { name: 'Cash', balance: 0.0, type: 'cash' };
+            // --- Seed Data Definitions (Use translate for names) ---
+            const defaultAccount = { name: 'Cash', balance: 0.0, type: 'cash' }; // Keep 'Cash' simple? Or translate? Let's keep simple.
             const defaultCategories = [
-                { name: 'Salary', group: 'Income' },
-                { name: 'Groceries', group: 'Expenses' },
-                { name: 'Dining Out', group: 'Expenses' },
-                { name: 'Shopping', group: 'Expenses' },
-                { name: 'Rent/Mortgage', group: 'Bills' },
-                { name: 'Subscriptions', group: 'Bills' },
-                { name: 'Utilities', group: 'Bills' },
-                { name: 'Transport', group: 'Expenses' },
-                { name: UNCATEGORIZED, group: 'Expenses' } // Ensure Uncategorized exists
+                { name: 'Salary', groupToken: 'category.group.income' }, // Example: Use group token if name is complex
+                { name: 'Groceries', groupToken: 'category.group.expenses' },
+                { name: 'Dining Out', groupToken: 'category.group.expenses' },
+                { name: 'Shopping', groupToken: 'category.group.expenses' },
+                { name: 'Rent/Mortgage', groupToken: 'category.group.bills' },
+                { name: 'Subscriptions', groupToken: 'category.group.bills' },
+                { name: 'Utilities', groupToken: 'category.group.bills' },
+                { name: 'Transport', groupToken: 'category.group.expenses' },
+                // Use the specific token for "Uncategorized"
+                { name: translate('category.uncategorized'), groupToken: 'category.group.expenses' }
             ];
-            const defaultMetadata = { key: 'appData', ready_to_assign: 0.0 }; // RTA starts at 0
+            // Default metadata with default language
+            const defaultMetadata = { key: 'appData', ready_to_assign: 0.0, welcomeDismissed: false, language: 'en' };
 
             // 1. Write Account
-            console.log("Seeding Account:", defaultAccount.name);
             const accReq = stores.acc.put(defaultAccount);
-            accReq.onerror = (e) => { errorOccurred = true; writeErrors.push(`Account: ${e.target.error}`); console.error("Seed Acc Error:", e.target.error); };
+            accReq.onerror = (e) => { errorOccurred = true; writeErrors.push(`Account: ${e.target.error}`); };
 
             // 2. Write Categories & Groups
             for (const catData of defaultCategories) {
-                console.log(`Seeding Category: ${catData.name}, Group: ${catData.group}`);
-                // Write Category Name
-                const catReq = stores.cat.put({ name: catData.name });
-                catReq.onerror = (e) => { errorOccurred = true; writeErrors.push(`Category '${catData.name}': ${e.target.error}`); console.error("Seed Cat Error:", e.target.error);};
+                 // For simplicity in seeding, let's use the English name directly as the key/name
+                 // Translation would apply when DISPLAYING these, not storing the translated name as the key.
+                 // So, revert this part to use the English names for the actual data keys.
+                 const categoryName = catData.name; // Use English name from definition
+                 const groupName = translate(catData.groupToken); // Translate the GROUP name for storage
 
-                // Write Group Mapping
-                const grpReq = stores.grp.put({ categoryName: catData.name, groupName: catData.group });
-                grpReq.onerror = (e) => { errorOccurred = true; writeErrors.push(`GroupMap '${catData.name}': ${e.target.error}`); console.error("Seed Grp Error:", e.target.error);};
+                 // Write Category Name (English Key)
+                 const catReq = stores.cat.put({ name: categoryName });
+                 catReq.onerror = (e) => { errorOccurred = true; writeErrors.push(`Category '${categoryName}': ${e.target.error}`); };
+
+                 // Write Group Mapping (English Category Key -> Translated Group Name)
+                 const grpReq = stores.grp.put({ categoryName: categoryName, groupName: groupName });
+                 grpReq.onerror = (e) => { errorOccurred = true; writeErrors.push(`GroupMap '${categoryName}': ${e.target.error}`); };
             }
 
-            // 3. Write Metadata (RTA)
-            console.log("Seeding Metadata (RTA=0)");
+            // 3. Write Metadata (RTA=0, welcome=false, lang='en')
             const metaReq = stores.meta.put(defaultMetadata);
-            metaReq.onerror = (e) => { errorOccurred = true; writeErrors.push(`Metadata: ${e.target.error}`); console.error("Seed Meta Error:", e.target.error);};
+            metaReq.onerror = (e) => { errorOccurred = true; writeErrors.push(`Metadata: ${e.target.error}`); };
 
         } catch (seedError) {
             console.error("Error during seed data preparation:", seedError);
-            errorOccurred = true;
-            writeErrors.push(`Preparation error: ${seedError.message}`);
-            transaction.abort(); // Abort if preparation fails
+            errorOccurred = true; writeErrors.push(`Preparation error: ${seedError.message}`);
+            transaction.abort();
             return reject(`Error preparing seed data: ${seedError.message}`);
         }
 
-        // Transaction completion handling
         transaction.oncomplete = () => {
             if (errorOccurred) {
                 console.error("Seed data transaction completed, but errors occurred:", writeErrors);
@@ -3369,21 +3507,24 @@ function seedInitialData() {
                 resolve();
             }
         };
-
         transaction.onerror = (event) => {
             console.error("Seed data transaction failed:", event.target.error);
             reject(`Database transaction failed during seeding: ${event.target.error}`);
         };
     });
 }
-
-/** Loads all budget data from IndexedDB stores, including welcome dismissed status. */
+/** Loads all budget data from IndexedDB stores, including preferences like language. */
 async function loadDataFromDB() {
-    console.log("Attempting to load data from IndexedDB...");
+    console.log("Attempting to load data and preferences from IndexedDB...");
+    updateStatus(translate('general.loading'), 'info'); // Show loading status
+
     if (!db) {
         console.error("DB not available for loading.");
-        updateStatus("Error: Cannot load data, database unavailable.", "error");
-        welcomeDismissed = false; // Assume not dismissed if DB fails
+        updateStatus(translate('general.error.dbUnavailable'), "error");
+        welcomeDismissed = false;
+        currentLanguage = 'en'; // Fallback language
+        await loadTranslations(currentLanguage); // Load fallback translations
+        applyTranslationsToStaticElements(); // Apply fallback static text
         processBudgetData(null, welcomeDismissed); // Process null to show 'no data' state
         return;
     }
@@ -3393,7 +3534,6 @@ async function loadDataFromDB() {
         GROUP_STORE_NAME, BUDGET_PERIOD_STORE_NAME, METADATA_STORE_NAME
     ];
     const transaction = db.transaction(storeNames, 'readonly');
-
     const stores = {
         tx: transaction.objectStore(TX_STORE_NAME),
         acc: transaction.objectStore(ACCOUNT_STORE_NAME),
@@ -3402,78 +3542,97 @@ async function loadDataFromDB() {
         bp: transaction.objectStore(BUDGET_PERIOD_STORE_NAME),
         meta: transaction.objectStore(METADATA_STORE_NAME),
     };
-
     const requests = {
         transactions: stores.tx.getAll(),
         accounts: stores.acc.getAll(),
         categories: stores.cat.getAll(),
         groups: stores.grp.getAll(),
         periods: stores.bp.getAll(),
-        metadata: stores.meta.get('appData') // Fetch the whole metadata object
+        metadata: stores.meta.get('appData')
     };
 
     try {
         const results = await new Promise((resolve, reject) => {
-            let res = {};
-            let completed = 0;
-            const totalRequests = Object.keys(requests).length;
-
+            let res = {}; completed = 0; totalRequests = Object.keys(requests).length;
             Object.entries(requests).forEach(([key, req]) => {
                 req.onsuccess = (event) => {
-                    res[key] = event.target.result;
-                    completed++;
-                    if (completed === totalRequests) resolve(res);
+                    res[key] = event.target.result; completed++; if (completed === totalRequests) resolve(res);
                 };
                 req.onerror = (event) => {
                     console.error(`Error loading from ${key} store:`, event.target.error);
-                    res[key] = (key === 'metadata') ? null : []; // Provide default empty/null on error
-                    completed++;
-                    if (completed === totalRequests) resolve(res); // Resolve even if parts failed
+                    res[key] = (key === 'metadata') ? null : []; completed++; if (completed === totalRequests) resolve(res);
                 };
             });
-
             transaction.oncomplete = () => console.log("Read transaction from IndexedDB complete.");
             transaction.onerror = (event) => reject(new Error(`Database read transaction failed: ${event.target.error}`));
-        }); // End Promise
+        });
 
-        // --- Extract data AND the welcome dismissed flag ---
+        // --- Extract PREFERENCES first (Language) ---
+        const metadata = results.metadata || { key: 'appData', ready_to_assign: 0.0, welcomeDismissed: false, language: 'en' };
+        const preferredLanguage = metadata.language || 'en';
+        welcomeDismissed = metadata.welcomeDismissed || false;
+
+        // --- Load translations for the PREFERRED language IF different from current ---
+        if (preferredLanguage !== currentLanguage) {
+            console.log(`Preferred language (${preferredLanguage}) differs from current (${currentLanguage}). Loading new translations...`);
+            const loaded = await loadTranslations(preferredLanguage);
+            if (!loaded) {
+                 // Handle case where preferred language file failed to load (already fell back to English in loadTranslations)
+                 updateStatus(translate('settings.language.loadingError', { lang: preferredLanguage }), 'error');
+            }
+        }
+
+        // Update the language dropdown selection
+        if (languageSelect) languageSelect.value = currentLanguage;
+
+        // --- Now extract the DATA ---
         const loadedData = {
             transactions: results.transactions || [],
             accounts: (results.accounts || []).reduce((acc, item) => { acc[item.name] = item.balance; return acc; }, {}),
             categories: (results.categories || []).map(item => item.name),
             category_groups: (results.groups || []).reduce((acc, item) => { acc[item.categoryName] = item.groupName; return acc; }, {}),
             budget_periods: (results.periods || []).reduce((acc, item) => { acc[item.period] = item.budget; return acc; }, {}),
-            ready_to_assign: results.metadata?.ready_to_assign || 0.0
+            ready_to_assign: metadata.ready_to_assign || 0.0
+            // Language and welcomeDismissed are handled above
         };
-        // Set the global flag based on loaded metadata
-        welcomeDismissed = results.metadata?.welcomeDismissed || false; // Default to false if not present
         console.log("Loaded data from IndexedDB:", loadedData);
-        console.log("Welcome Dismissed Status:", welcomeDismissed);
+        console.log("Preferences - Language:", currentLanguage, "Welcome Dismissed:", welcomeDismissed);
+
+        // --- Apply Static Translations after potentially loading new language ---
+        applyTranslationsToStaticElements();
 
         // --- Check for Empty Data & Seeding ---
-        if (isDataEmpty(loadedData)) { // Use the simplified check now maybe?
+        if (isDataEmpty(loadedData)) {
             try {
-                await seedInitialData();
+                await seedInitialData(); // seedInitialData now uses translate
                 console.log("Seeding complete, reloading data...");
-                 // Reset welcomeDismissed flag after seeding, maybe? Or assume new user hasn't dismissed.
-                 welcomeDismissed = false; // Explicitly reset after seeding
-                 await updateMetadataFlag('welcomeDismissed', false); // Ensure DB matches
-                await loadDataFromDB(); // Recursive call reloads everything including the flag
+                welcomeDismissed = false; // Explicitly reset after seeding
+                currentLanguage = 'en'; // Reset language on seed? Or keep user pref? Let's reset for simplicity.
+                await updateMetadataFlag('welcomeDismissed', false);
+                await saveLanguagePreference('en'); // Save default lang
+                await loadDataFromDB(); // Recursive call reloads everything
                 return;
             } catch (seedError) {
                 console.error("Failed to seed initial data:", seedError);
-                updateStatus("Error: Could not set up initial data.", "error");
+                updateStatus(translate('general.error.seedFailed.detail', { error: seedError }), "error");
                 processBudgetData(loadedData, welcomeDismissed); // Process potentially empty data
             }
         } else {
-            // Process the loaded data
+            // --- Process the loaded data (will use current translations) ---
             processBudgetData(loadedData, welcomeDismissed);
+             // Clear generic loading message after successful load and process
+             if (statusMessageDiv && statusMessageDiv.textContent === translate('general.loading')) {
+                updateStatus('', 'info'); // Clear loading message
+            }
         }
 
     } catch (loadError) {
         console.error("Failed to load data from IndexedDB:", loadError);
-        updateStatus(`Error loading data: ${loadError.message}`, "error");
+        updateStatus(translate('general.error.loadData', { error: loadError.message }), "error");
         welcomeDismissed = false; // Assume not dismissed on error
+        currentLanguage = 'en'; // Fallback language
+        await loadTranslations(currentLanguage); // Load fallback
+        applyTranslationsToStaticElements(); // Apply fallback
         processBudgetData(null, welcomeDismissed); // Show empty state
     }
 }
@@ -3654,14 +3813,10 @@ function putMetadata(store, metadata) {
 
 /** Exports all data from IndexedDB */
 async function handleExportStandaloneData() {
-    console.warn("Standalone export ");
+    console.warn("Web export ");
     if (exportStandaloneStatusDiv) {
-        updateStatusMessage(exportStandaloneStatusDiv, "Exporting all local data...", "info");
+        updateStatusMessage(exportStandaloneStatusDiv, translate('importExport.export.status.exporting'), "info");
     }
-
-    // 1. Read ALL data from ALL relevant stores (similar to loadDataFromDB)
-    // 2. Format into the standard budget_data.json structure
-    // 3. Trigger download
 
     try {
          // Reuse loading logic but capture the data directly
@@ -3696,32 +3851,32 @@ async function handleExportStandaloneData() {
             ready_to_assign: results.metadata?.ready_to_assign || 0.0,
             // Add metadata like export timestamp
             _export_metadata: {
-                 mode: "standalone",
+                 mode: "mobile",
                  timestamp: new Date().toISOString()
             }
         };
 
-        // Trigger download (reuse existing logic)
-         const jsonDataString = JSON.stringify(exportData, null, 4);
-         const blob = new Blob([jsonDataString], { type: 'application/json' });
-         const url = URL.createObjectURL(blob);
-         const a = document.createElement('a');
-         a.href = url;
-         a.download = `budget_data_${new Date().toISOString().slice(0, 10)}.json`;
-         document.body.appendChild(a); a.click(); document.body.removeChild(a);
-         URL.revokeObjectURL(url);
+        // Trigger download
+        const jsonDataString = JSON.stringify(exportData, null, 4);
+        const blob = new Blob([jsonDataString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `budget_data_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
 
-         if (exportStandaloneStatusDiv) {
-            updateStatusMessage(exportStandaloneStatusDiv, "Data exported successfully.", "success");
-         }
-
+        if (exportStandaloneStatusDiv) {
+            updateStatusMessage(exportStandaloneStatusDiv, translate('importExport.export.status.success'), "success");
+        }
     } catch (error) {
-         console.error("Standalone export failed:", error);
-         if (exportStandaloneStatusDiv) {
-             updateStatusMessage(exportStandaloneStatusDiv, `Export failed: ${error}`, "error");
-         }
+        console.error("Standalone export failed:", error);
+        if (exportStandaloneStatusDiv) {
+            updateStatusMessage(exportStandaloneStatusDiv, translate('importExport.export.status.error', { error: error }), "error");
+        }
     }
 }
+
 
 /** Clears ALL budget data from IndexedDB */
 async function clearAllStandaloneData() {
@@ -3890,29 +4045,37 @@ function deleteTransactionStandalone(transactionId) {
 }
 
 /**
- * Handles the "Import File and Replace Data" button click .
+ * Handles the "Import File and Replace Data" button click.
+ * Uses translate() for user-facing messages and confirmation.
  */
 function handleStandaloneImport() {
+    // Check required elements exist
     if (!importStandaloneFileInput || !importStandaloneStatusDiv || !importStandaloneButton) {
          console.error("Missing required elements for standalone import.");
+         // Attempt to show error even if status div is missing
          if (importStandaloneStatusDiv) {
-            updateStatusMessage(importStandaloneStatusDiv, "Error: Import UI elements not found.", "error");
+            updateStatusMessage(importStandaloneStatusDiv, translate('general.error.generic'), "error"); // Use a generic error token
+         } else {
+            alert(translate('general.error.generic')); // Fallback alert
          }
          return;
     }
 
     const file = importStandaloneFileInput.files?.[0];
+    const statusDiv = importStandaloneStatusDiv; // Alias for clarity
 
+    // --- File Selection Validation ---
     if (!file) {
-        updateStatusMessage(importStandaloneStatusDiv, "Error: No file selected.", "error");
+        updateStatusMessage(statusDiv, translate('importExport.import.status.error.noFile'), "error");
         return;
     }
     if (file.type !== "application/json") {
-        updateStatusMessage(importStandaloneStatusDiv, `Error: Selected file (${file.name}) is not a JSON file.`, "error");
+        updateStatusMessage(statusDiv, translate('importExport.import.status.error.notJson', { filename: file.name }), "error");
         return;
     }
 
-    updateStatusMessage(importStandaloneStatusDiv, `Reading file: ${file.name}...`, "info");
+    // --- Start Processing ---
+    updateStatusMessage(statusDiv, translate('importExport.import.status.reading', { filename: file.name }), "info");
     importStandaloneButton.disabled = true; // Disable while processing
 
     const reader = new FileReader();
@@ -3921,25 +4084,26 @@ function handleStandaloneImport() {
         const fileContent = e.target.result;
         let jsonData;
 
+        // --- Parse JSON ---
         try {
             jsonData = JSON.parse(fileContent);
         } catch (error) {
             console.error("Error parsing import JSON:", error);
-            updateStatusMessage(importStandaloneStatusDiv, `Error: Could not parse JSON file. Is it valid? ${error.message}`, "error");
+            updateStatusMessage(statusDiv, translate('importExport.import.status.error.parse', { error: error.message }), "error");
             importStandaloneButton.disabled = false; // Re-enable button
             return;
         }
 
-        // Basic validation
+        // --- Validate Data Structure ---
         if (!validateImportData(jsonData)) {
-             updateStatusMessage(importStandaloneStatusDiv, `Error: File does not appear to be valid budget data (missing key fields like accounts, transactions, etc.)`, "error");
+             updateStatusMessage(statusDiv, translate('importExport.import.status.error.validation'), "error");
              importStandaloneButton.disabled = false;
              return;
         }
 
-        // *** CRITICAL: User Confirmation ***
-        if (!confirm("IMPORTANT: Are you sure you want to replace ALL existing data on this device with the content of this file? This cannot be undone.")) {
-            updateStatusMessage(importStandaloneStatusDiv, "Import cancelled by user.", "info");
+        // --- CRITICAL: User Confirmation (Translated) ---
+        if (!confirm(translate('importExport.import.confirm'))) {
+            updateStatusMessage(statusDiv, translate('importExport.import.status.cancelled'), "info");
             importStandaloneButton.disabled = false;
              importStandaloneFileInput.value = null; // Clear file input
              // Ensure button is disabled again since file is cleared
@@ -3947,18 +4111,19 @@ function handleStandaloneImport() {
             return;
         }
 
+        // --- Perform Import ---
         try {
             // 1. Clear existing data
-            updateStatusMessage(importStandaloneStatusDiv, "Clearing existing data...", "info");
+            updateStatusMessage(statusDiv, translate('importExport.import.status.clearing'), "info");
             await clearAllStandaloneData();
 
             // 2. Write imported data
-            updateStatusMessage(importStandaloneStatusDiv, "Importing data into database...", "info");
+            updateStatusMessage(statusDiv, translate('importExport.import.status.importing'), "info");
             await writeImportedDataToDB(jsonData);
 
              // 3. Reload data and refresh UI
-             updateStatusMessage(importStandaloneStatusDiv, "Import successful. Reloading view...", "success");
-             await loadDataFromDB();
+             updateStatusMessage(statusDiv, translate('importExport.import.status.success'), "success");
+             await loadDataFromDB(); // Reload and refresh UI (applies new translations if lang changed via import)
 
              // 4. Reset import form
              importStandaloneFileInput.value = null;
@@ -3966,14 +4131,25 @@ function handleStandaloneImport() {
         } catch (error) {
              console.error("Import process failed:", error);
              // Provide more specific error from writeImportedDataToDB if possible
-             updateStatusMessage(importStandaloneStatusDiv, `Import failed: ${error}`, "error");
+             // Determine the most appropriate error token based on the error message
+             let errorKey = 'importExport.import.status.error.process'; // Default process error
+            if (error && error.message) {
+                if (error.message.includes('Import completed with errors')) {
+                    errorKey = 'importExport.import.status.error.write';
+                } else if (error.message.includes('Database transaction failed')) {
+                    errorKey = 'importExport.import.status.error.db';
+                }
+                // Add more checks here if writeImportedDataToDB throws more specific errors
+            }
+             updateStatusMessage(statusDiv, translate(errorKey, { error: error, errors: error }), "error"); // Pass error object for potential details in translation
              importStandaloneButton.disabled = false; // Re-enable button on error
         }
     };
 
+    // --- File Reader Error ---
     reader.onerror = (e) => {
         console.error("Error reading import file:", e);
-        updateStatusMessage(importStandaloneStatusDiv, `Error reading file ${file.name}.`, "error");
+        updateStatusMessage(statusDiv, translate('importExport.import.status.error.read', { filename: file.name }), "error");
         importStandaloneButton.disabled = false;
     };
 
@@ -4178,17 +4354,18 @@ async function handleAddAccount(event) {
     const accountName = newAccountNameInput.value.trim();
     const accountType = newAccountTypeSelect.value;
     const startingBalance = parseCurrency(newAccountBalanceInput.value);
+    const statusDiv = addAccountStatusDiv; // Alias
 
-    updateStatusMessage(addAccountStatusDiv, "Adding account...", "info");
+    updateStatusMessage(statusDiv, translate('accounts.manage.add.status.adding'), "info");
 
-    // Validation
     if (!accountName) {
-        updateStatusMessage(addAccountStatusDiv, "Error: Account name cannot be empty.", "error");
-        return;
+        updateStatusMessage(statusDiv, translate('accounts.manage.add.validation.nameRequired'), "error"); return;
     }
-    if (isNaN(startingBalance)) {
-        updateStatusMessage(addAccountStatusDiv, "Error: Invalid starting balance. Please use format like 1234,56 or (500,00).", "error");
-        return;
+    if (isNaN(startingBalance)) { // parseCurrency returns NaN on failure
+        updateStatusMessage(statusDiv, translate('accounts.manage.add.validation.balanceInvalid'), "error"); return;
+    }
+    if (localBudgetData?.accounts?.hasOwnProperty(accountName)) {
+        updateStatusMessage(statusDiv, translate('accounts.manage.add.validation.duplicate', { name: accountName }), "error"); return;
     }
 
     // Check for duplicates using localBudgetData
@@ -4206,7 +4383,7 @@ async function handleAddAccount(event) {
     try {
         await saveAccountAndAdjustRTA(newAccountData);
 
-        updateStatusMessage(addAccountStatusDiv, `Account "${accountName}" added successfully.`, "success");
+        updateStatusMessage(statusDiv, translate('accounts.manage.add.status.added', { name: accountName }), "success");
         addAccountForm.reset();
 
         // Refresh UI by reloading data
@@ -4214,12 +4391,12 @@ async function handleAddAccount(event) {
 
     } catch (error) {
         console.error("Failed to add account:", error);
-        updateStatusMessage(addAccountStatusDiv, `Error adding account: ${error}`, "error");
+        updateStatusMessage(statusDiv, translate('accounts.manage.add.status.error', { error: error }), "error");
     }
 }
 
 /**
- * Saves a new account to IndexedDB and adjusts Ready To Assign .
+ * Saves a new account to IndexedDB and adjusts Ready To Assign, preserving other metadata.
  * @param {object} accountData Object containing { name, balance, type }.
  * @returns {Promise<void>}
  */
@@ -4230,18 +4407,19 @@ function saveAccountAndAdjustRTA(accountData) {
         const transaction = db.transaction([ACCOUNT_STORE_NAME, METADATA_STORE_NAME], 'readwrite');
         const accStore = transaction.objectStore(ACCOUNT_STORE_NAME);
         const metaStore = transaction.objectStore(METADATA_STORE_NAME);
-        let currentRTA = 0;
+        let fullMetadata = null; // To store the complete metadata object
 
-        // 1. Get current RTA
+        // 1. Get the full metadata object first
         const metaGetReq = metaStore.get('appData');
         metaGetReq.onerror = (event) => {
-            console.error("Error getting metadata for RTA:", event.target.error);
-            // Don't necessarily fail the whole operation, maybe default RTA to 0?
-            // transaction.abort(); // Or abort if RTA is critical
-            // reject("Failed to read current RTA");
+            // Log error, but maybe allow proceeding if RTA isn't found initially?
+            console.error("Error getting metadata for RTA update:", event.target.error);
+            // Default metadata structure if fetch fails or none exists
+            fullMetadata = { key: 'appData', ready_to_assign: 0.0, welcomeDismissed: false, language: 'en' };
         };
         metaGetReq.onsuccess = (event) => {
-            currentRTA = event.target.result?.ready_to_assign || 0.0;
+            // Store the fetched metadata or use the default
+            fullMetadata = event.target.result || { key: 'appData', ready_to_assign: 0.0, welcomeDismissed: false, language: 'en' };
 
             // 2. Add the new account
             const accAddReq = accStore.add(accountData);
@@ -4253,25 +4431,28 @@ function saveAccountAndAdjustRTA(accountData) {
             accAddReq.onsuccess = () => {
                 console.log(`Account '${accountData.name}' added to DB.`);
 
-                // 3. Calculate and Update RTA
-                // For simplicity: Add the balance directly.
-                // A positive balance increases RTA, a negative (credit card) decreases it.
-                const newRTA = currentRTA + accountData.balance;
-                const updatedMetadata = { key: 'appData', ready_to_assign: newRTA };
+                // 3. Calculate and Update RTA on the fullMetadata object
+                // Ensure ready_to_assign exists before calculation
+                const currentRTA = fullMetadata.ready_to_assign || 0.0;
+                const newRTA = currentRTA + accountData.balance; // Add balance (could be negative for credit cards)
 
-                const metaPutReq = metaStore.put(updatedMetadata);
+                // Update the RTA property on the fetched metadata object
+                fullMetadata.ready_to_assign = newRTA;
+
+                // --- Save the MODIFIED FULL metadata object back ---
+                const metaPutReq = metaStore.put(fullMetadata);
                 metaPutReq.onerror = (event) => {
                     console.error("Error updating RTA metadata:", event.target.error);
-                    // Account might be saved, but RTA failed. Decide how critical this is.
+                    // Account might be saved, but RTA failed. Decide how critical.
                     // transaction.abort(); // Maybe abort?
                     reject(`Account saved, but failed to update RTA: ${event.target.error}`);
                 };
                 metaPutReq.onsuccess = () => {
-                    console.log(`RTA updated successfully to: ${newRTA}`);
-                    // If we reach here, both operations likely succeeded within the transaction.
+                    console.log(`RTA updated successfully to: ${newRTA}, other metadata preserved.`);
+                    // Transaction will complete after this...
                 };
-            };
-        };
+            }; // end accAddReq.onsuccess
+        }; // end metaGetReq.onsuccess
 
         transaction.oncomplete = () => {
             console.log("Add account & update RTA transaction complete.");
@@ -4280,7 +4461,6 @@ function saveAccountAndAdjustRTA(accountData) {
         transaction.onerror = (event) => {
             console.error("Add account & update RTA transaction failed:", event.target.error);
             // Reject was likely already called by specific request errors
-            // but we add a fallback reject here.
             reject(`Transaction failed: ${event.target.error}`);
         };
     });
@@ -4302,42 +4482,34 @@ async function handleAddCategory(event) {
 
     const categoryName = newCategoryNameInput.value.trim();
     const selectedGroup = newCategoryGroupSelect.value;
+    const statusDiv = addCategoryStatusDiv;
 
-    updateStatusMessage(addCategoryStatusDiv, "Adding category...", "info");
+    updateStatusMessage(statusDiv, translate('categories.manage.add.status.adding'), "info");
 
-    // Validation
     if (!categoryName) {
-        updateStatusMessage(addCategoryStatusDiv, "Error: Category name cannot be empty.", "error");
-        return;
+        updateStatusMessage(statusDiv, translate('categories.manage.add.validation.nameRequired'), "error"); return;
     }
-    if (!selectedGroup) {
-        updateStatusMessage(addCategoryStatusDiv, "Error: Please select a category group.", "error");
-        return;
+     // The value of the select IS the group name (already translated in the dropdown)
+     if (!selectedGroup) {
+        updateStatusMessage(statusDiv, translate('categories.manage.add.validation.groupRequired'), "error"); return;
     }
-
-    // Check for duplicates using localBudgetData
-     if (localBudgetData && localBudgetData.categories && localBudgetData.categories.includes(categoryName)) {
-        updateStatusMessage(addCategoryStatusDiv, `Error: Category named "${categoryName}" already exists.`, "error");
-        return;
+    // Check for duplicate using RAW category name
+    if (localBudgetData?.categories?.includes(categoryName)) {
+        updateStatusMessage(statusDiv, translate('categories.manage.add.validation.duplicate', { name: categoryName }), "error"); return;
     }
 
-    const newCategoryData = {
-        name: categoryName,
-        group: selectedGroup
-    };
+    // Store RAW category name and selected (potentially translated) group name
+    const newCategoryData = { name: categoryName, group: selectedGroup };
 
     try {
         await saveCategoryAndGroup(newCategoryData);
-
-        updateStatusMessage(addCategoryStatusDiv, `Category "${categoryName}" added successfully to group "${selectedGroup}".`, "success");
+        // Use raw category name and selected group name in success message
+        updateStatusMessage(statusDiv, translate('categories.manage.add.status.added', { name: categoryName, group: selectedGroup }), "success");
         addCategoryForm.reset();
-
-        // Refresh UI by reloading data
-        await loadDataFromDB();
-
+        await loadDataFromDB(); // Refresh UI
     } catch (error) {
         console.error("Failed to add category:", error);
-        updateStatusMessage(addCategoryStatusDiv, `Error adding category: ${error}`, "error");
+        updateStatusMessage(statusDiv, translate('categories.manage.add.status.error', { error: error }), "error");
     }
 }
 
@@ -4394,82 +4566,62 @@ function saveCategoryAndGroup(categoryData) {
 /** Handles the submission of the new transaction form. */
 async function handleAddTransaction(event) {
     event.preventDefault();
-
     const statusDiv = addTxStatusDiv;
     if (!statusDiv) return;
-    updateStatusMessage(statusDiv, "Processing...", "info"); // Changed initial message slightly
+    updateStatusMessage(statusDiv, translate('addForm.status.processing'), "info");
 
     const txType = txTypeSelect.value;
     const isTransfer = txType === 'transfer';
-    
-    // --- Validation ---
-    let validationPassed = true;
-    let validationError = "";
+    let validationPassed = true; let validationError = "";
+    let amount = 0; let payeeOrToAccountValue = '';
 
     // Common Validations
-    if (!txDateInput.value) {
-        validationPassed = false; validationError = "Please select a date.";
-    } else if (!txAccountSelect.value) {
-        validationPassed = false; validationError = "Please select the source account.";
-    }
-    let amount = 0; // Declare amount variable
-    if (validationPassed) {
-        amount = parseCurrency(txAmountInput.value); // Use the custom parser
-
-        // Validate the parsed number (parseCurrency returns 0 for invalid)
-        if (amount <= 0) {
-            validationPassed = false;
-            validationError = "Invalid amount. Amount must be positive and correctly formatted (e.g., 5,50 or 1.234,56).";
+    if (!txDateInput.value) { validationPassed = false; validationError = translate('addForm.validation.dateRequired'); }
+    else if (!txAccountSelect.value) { validationPassed = false; validationError = translate('addForm.validation.accountRequired'); }
+    else {
+        amount = parseCurrency(txAmountInput.value);
+        if (isNaN(amount) || amount <= 0) { // Use isNaN returned by parseCurrency
+            validationPassed = false; validationError = translate('addForm.validation.amountInvalid');
         }
     }
 
     // Type-Specific Validations
-    let payeeOrToAccountValue = '';
     if (validationPassed) {
         if (isTransfer) {
             payeeOrToAccountValue = txTransferToAccountSelect.value;
-            if (!payeeOrToAccountValue) {
-                validationPassed = false; validationError = "Please select a destination account for the transfer.";
-            } else if (payeeOrToAccountValue === txAccountSelect.value) {
-                validationPassed = false; validationError = "Cannot transfer to the same account.";
-            }
-        } else { // Expense, Income, Refund
+            if (!payeeOrToAccountValue) { validationPassed = false; validationError = translate('addForm.validation.toAccountRequired'); }
+            else if (payeeOrToAccountValue === txAccountSelect.value) { validationPassed = false; validationError = translate('addForm.validation.transferSameAccount'); }
+        } else {
             payeeOrToAccountValue = txPayeeInput.value.trim();
-            if (!txCategorySelect.value) { // Category is required for non-transfers
-                validationPassed = false; validationError = "Please select a category.";
-            }
+            if (!txCategorySelect.value) { validationPassed = false; validationError = translate('addForm.validation.categoryRequired'); }
         }
     }
 
     if (!validationPassed) {
-        console.error("Validation failed:", validationError); // LOG 3: Validation failure
-        updateStatusMessage(statusDiv, `Error: ${validationError}`, "error");
+        console.error("Validation failed:", validationError);
+        updateStatusMessage(statusDiv, `${translate('addForm.validation.errorPrefix')} ${validationError}`, "error"); // Add prefix
         return;
     }
 
-    // --- Assemble Transaction Object ---
+    // Assemble Transaction Object (Use raw category name)
     const newTx = {
-        type: txType,
-        date: txDateInput.value,
-        account: txAccountSelect.value, // "From" account
-        payee: isTransfer ? payeeOrToAccountValue : (payeeOrToAccountValue || `(${txType})`), // Use selected "To" account as Payee for transfers, or default for others
-        category: isTransfer ? null : txCategorySelect.value, // No category for transfers
-        amount: amount,
-        memo: txMemoInput.value.trim(),
+        type: txType, date: txDateInput.value, account: txAccountSelect.value,
+        payee: isTransfer ? payeeOrToAccountValue : (payeeOrToAccountValue || translate('addForm.payee.default', {type: txType})), // Use token for default payee
+        category: isTransfer ? null : txCategorySelect.value, // <<< STORE RAW CATEGORY NAME
+        amount: amount, memo: txMemoInput.value.trim(),
     };
 
-    // --- Attempt to Save ---
     try {
         await saveTransactionStandalone(newTx);
-        // Status update and form reset are now handled inside saveTransactionStandalone on success
+        // Status update inside saveTransactionStandalone uses translate
     } catch (error) {
-        console.error("Failed to add transaction:", error); 
-        updateStatusMessage(statusDiv, `Error saving transaction: ${error}`, "error");
+        console.error("Failed to add transaction:", error);
+        updateStatusMessage(statusDiv, translate('addForm.status.error', { error: error }), "error"); // Use token
     }
 }
 
 /** Generates a Version 4 UUID string. */
-function generateUUID() { /* ... keep existing UUID function ... */
+function generateUUID() { 
     if (self.crypto && self.crypto.randomUUID) {
         return self.crypto.randomUUID();
     } else {
@@ -4494,12 +4646,13 @@ function updateAddFormForTxType(selectedType) {
 
     const isTransfer = selectedType === 'transfer';
 
-    // --- Payee / To Account Fields ---
-    payeeLabel.textContent = isTransfer ? "To Account:" : "Payee:";
-    txPayeeInput.classList.toggle('hidden', isTransfer); // Hide Payee input if transfer
-    txTransferToAccountSelect.classList.toggle('hidden', !isTransfer); // Show 'To Account' select if transfer
+     // Translate Payee/To Account Label
+     payeeLabel.textContent = translate(isTransfer ? 'addForm.label.toAccount' : 'addForm.label.payee');
+     txPayeeInput.classList.toggle('hidden', isTransfer);
+     txTransferToAccountSelect.classList.toggle('hidden', !isTransfer);
 
     // Set required attribute dynamically
+    categoryLabel.textContent = translate('addForm.label.category');
     txPayeeInput.required = !isTransfer;
     txTransferToAccountSelect.required = isTransfer;
 
@@ -4513,7 +4666,6 @@ function updateAddFormForTxType(selectedType) {
         txCategorySelect.value = ''; // Clear category selection for transfer
     } else {
         // For non-transfers, ensure the category dropdown is populated correctly for the type
-        // (This was already handled by a previous function, but call it defensively)
         updateCategoryDropdownForTxType(selectedType);
     }
 
@@ -4560,34 +4712,37 @@ function filterTransactions() {
     if (!transactionsTbody) return;
     const searchTerm = (filterSearchInput?.value || '').toLowerCase().trim();
     const selectedAccount = filterAccountSelect?.value || '';
-    const selectedCategory = filterCategorySelect?.value || '';
+    const selectedCategory = filterCategorySelect?.value || ''; // Value is raw category name
     const startDate = filterStartDateInput?.value || '';
     const endDate = filterEndDateInput?.value || '';
 
-    const rows = transactionsTbody.rows;
-    let visibleRowCount = 0;
-
+    const rows = transactionsTbody.rows; let visibleRowCount = 0;
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
-        if (!row.dataset || !row.dataset.date) continue; // Check for valid data row
-
+        // Use raw data attributes for filtering
+        if (!row.dataset || !row.dataset.date) continue;
         const rowDate = row.dataset.date;
         const rowAccount = row.dataset.account || '';
-        const rowCategory = row.dataset.category || '';
-        const rowPayee = (row.dataset.payee || '').toLowerCase();
+        const rowCategory = row.dataset.category || ''; // Raw category name from data attribute
+        const rowPayee = (row.dataset.payee || '').toLowerCase(); // Raw payee from data attribute
         const rowMemo = (row.dataset.memo || '').toLowerCase();
 
         let showRow = true;
         if (searchTerm && !(rowPayee.includes(searchTerm) || rowMemo.includes(searchTerm))) showRow = false;
         if (showRow && selectedAccount && rowAccount !== selectedAccount) showRow = false;
-        if (showRow && selectedCategory && rowCategory !== selectedCategory) showRow = false;
+        if (showRow && selectedCategory && rowCategory !== selectedCategory) showRow = false; // Compare raw names
         if (showRow && startDate && rowDate < startDate) showRow = false;
         if (showRow && endDate && rowDate > endDate) showRow = false;
 
         row.style.display = showRow ? '' : 'none';
         if (showRow) visibleRowCount++;
     }
-    if (noResultsMessage) noResultsMessage.classList.toggle('hidden', visibleRowCount > 0 || transactionsTbody.rows.length === 0 || transactionsTbody.rows[0]?.cells[0]?.textContent.includes('No transactions'));
+    // Toggle 'no results' message (use translated text)
+    if (noResultsMessage) {
+         const noDataRowVisible = transactionsTbody.rows.length === 1 && transactionsTbody.rows[0]?.cells[0]?.textContent === translate('transactions.table.noData');
+         noResultsMessage.textContent = translate('transactions.table.noMatch'); // Ensure text is set
+         noResultsMessage.classList.toggle('hidden', visibleRowCount > 0 || noDataRowVisible || transactionsTbody.rows.length === 0);
+    }
 }
 /** Resets all filter inputs and re-applies filtering. */
 function resetAllFilters() {
@@ -4600,7 +4755,6 @@ function resetAllFilters() {
 }
 
 // --- PWA Service Worker Registration --- 
-// ... (Service Worker registration code remains the same) ...
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js')

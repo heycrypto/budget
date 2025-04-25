@@ -1,376 +1,373 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en"> <!-- Will be updated by JS -->
 <head>
     <meta charset="UTF-8">
-    <!-- Responsive viewport tag -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zero Budget</title>
+    <title data-translate-token="app.title">Zero Budget</title> 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <!-- Link to your CSS file -->
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
-    <!-- Defer script loading until HTML is parsed -->
+    <!-- NOTE: script.js is deferred, so translations might load *after* initial render -->
     <script src="script.js" defer></script>
 </head>
 <body>
     <header>
-        <button id="menu-toggle" class="menu-button" aria-label="Open Menu">
-            <i class="fa-solid fa-bars"></i> <!-- Font Awesome Bars Icon -->
+        <button id="menu-toggle" class="menu-button" aria-label="Open Menu" data-translate-title="menu.toggle.open">
+            <i class="fa-solid fa-bars"></i>
         </button>
-        <h1>My Budget</h1>
+        <h1 data-translate-token="app.title">My Budget</h1> 
     </header>
     <nav id="side-menu" class="side-menu">
-        <button id="menu-close" class="menu-close-button" aria-label="Close Menu">×</button>
+        <button id="menu-close" class="menu-close-button" aria-label="Close Menu" data-translate-title="menu.toggle.close">×</button>
         <ul>
-            <li><a href="#add-expense-form" class="nav-link" data-section="add-expense-form">Add Income/Expense</a></li>
-            <li><a href="#transactions-list" class="nav-link" data-section="transactions-list">Transactions</a></li>
-            <li><a href="#manage-accounts-section" class="nav-link" data-section="manage-accounts-section">Accounts</a></li>
-            <li><a href="#manage-categories-section" class="nav-link" data-section="manage-categories-section">Categories</a></li>
-            <li><a href="#budget-view" class="nav-link" data-section="budget-view">Budget </a></li>
-            <li><a href="#dashboard-summary" class="nav-link" data-section="dashboard-summary">Dashboard</a></li>
-            <li><a href="#charts-section" class="nav-link" data-section="charts-section">Charts</a></li>
-            <li><a href="#yearly-summary-section" class="nav-link" data-section="yearly-summary-section">Yearly Summary</a></li> 
-            <li><a href="#sync-section" class="nav-link" data-section="sync-section">Import/Export</a></li>
+            <li><a href="#add-expense-form" class="nav-link" data-section="add-expense-form" data-translate-token="menu.addTransaction">Add Income/Expense</a></li>
+            <li><a href="#transactions-list" class="nav-link" data-section="transactions-list" data-translate-token="menu.transactions">Transactions</a></li>
+            <li><a href="#manage-accounts-section" class="nav-link" data-section="manage-accounts-section" data-translate-token="menu.accounts">Accounts</a></li>
+            <li><a href="#manage-categories-section" class="nav-link" data-section="manage-categories-section" data-translate-token="menu.categories">Categories</a></li>
+            <li><a href="#budget-view" class="nav-link" data-section="budget-view" data-translate-token="menu.budget">Budget</a></li>
+            <li><a href="#dashboard-summary" class="nav-link" data-section="dashboard-summary" data-translate-token="menu.dashboard">Dashboard</a></li>
+            <li><a href="#charts-section" class="nav-link" data-section="charts-section" data-translate-token="menu.charts">Charts</a></li>
+            <li><a href="#yearly-summary-section" class="nav-link" data-section="yearly-summary-section" data-translate-token="menu.yearlySummary">Yearly Summary</a></li>
+            <li><a href="#sync-section" class="nav-link" data-section="sync-section" data-translate-token="menu.importExport">Import/Export</a></li>
+            <li><a href="#settings-section" class="nav-link" data-section="settings-section" data-translate-token="menu.settings">Settings</a></li> 
         </ul>
     </nav>
     <div id="overlay" class="overlay"></div>
     <main class="container">
+
+        <!-- Settings Section -->
+        <section id="settings-section" class="main-section hidden card">
+            <h2 data-translate-token="settings.title">Settings</h2>
+            <div class="form-group">
+                <label for="language-select" data-translate-token="settings.language.label">Language:</label>
+                <select id="language-select">
+                    <option value="en" data-translate-token="settings.language.en">English</option>
+                    <option value="gr" data-translate-token="settings.language.gr">Greek</option>
+                </select>
+            </div>
+            <div id="settings-status" style="margin-top: 15px;"></div>
+        </section>
+        <!-- End Settings Section -->
+
         <section id="manage-accounts-section" class="main-section hidden card">
-            <h2>Manage Accounts</h2>
-
-            <div id="manage-accounts-content"> <!-- Wrapper div -->
-                <p>Add new accounts and set their starting balances.</p>
-
+            <h2 data-translate-token="accounts.manage.title">Manage Accounts</h2>
+            <div id="manage-accounts-content">
+                <p data-translate-token="accounts.manage.intro">Add new accounts and set their starting balances.</p>
                 <form id="add-account-form" style="margin-bottom: 30px;">
-                    <h3>Add New Account</h3>
-                    <div class="filter-grid"> <!-- Reuse grid for layout -->
+                    <h3 data-translate-token="accounts.manage.add.title">Add New Account</h3>
+                    <div class="filter-grid">
                         <div class="form-group">
-                            <label for="new-account-name">Account Name:</label>
-                            <input type="text" id="new-account-name" placeholder="e.g., Checking, Savings" required>
+                            <label for="new-account-name" data-translate-token="accounts.manage.add.label.name">Account Name:</label>
+                            <input type="text" id="new-account-name" data-translate-placeholder="accounts.manage.add.placeholder.name" placeholder="e.g., Checking, Savings" required>
                         </div>
                         <div class="form-group">
-                            <label for="new-account-type">Account Type:</label>
+                            <label for="new-account-type" data-translate-token="accounts.manage.add.label.type">Account Type:</label>
                             <select id="new-account-type">
-                                <option value="cash">Cash</option>
-                                <option value="checking">Checking</option>
-                                <option value="savings">Savings</option>
-                                <option value="credit_card">Credit Card</option>
+                                <option value="cash" data-translate-token="accounts.manage.add.type.cash">Cash</option>
+                                <option value="checking" data-translate-token="accounts.manage.add.type.checking">Checking</option>
+                                <option value="savings" data-translate-token="accounts.manage.add.type.savings">Savings</option>
+                                <option value="credit_card" data-translate-token="accounts.manage.add.type.credit_card">Credit Card</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="new-account-balance">Starting Balance:</label>
-                            <input type="text" id="new-account-balance" placeholder="e.g., 1500,50 or -500" required  inputmode="decimal" autocomplete="off">
+                            <label for="new-account-balance" data-translate-token="accounts.manage.add.label.balance">Starting Balance:</label>
+                            <input type="text" id="new-account-balance" data-translate-placeholder="accounts.manage.add.placeholder.balance" placeholder="e.g., 1500,50 or -500" required inputmode="decimal" autocomplete="off">
                         </div>
                         <div class="form-group">
-                            <button type="submit" class="button button-primary-action">Add Account</button>
+                            <button type="submit" class="button button-primary-action" data-translate-token="accounts.manage.add.button.add">Add Account</button>
                         </div>
                     </div>
                     <div id="add-account-status" style="margin-top: 10px;"></div>
                 </form>
-
                 <hr style="margin: 20px 0;">
-
-                <h3>Existing Accounts</h3>
+                <h3 data-translate-token="accounts.manage.existing.title">Existing Accounts</h3>
                 <ul id="existing-accounts-list" class="summary-list" style="margin-top: 10px;">
-                    <li>No accounts added yet.</li> 
+                    <li data-translate-token="accounts.manage.existing.none">No accounts added yet.</li>
                 </ul>
             </div>
         </section>
+
         <section id="manage-categories-section" class="main-section hidden card">
-            <h2>Manage Categories</h2>
-
-            <div id="manage-categories-content"> <!-- Wrapper div -->
-                <p>Add new categories and assign them to groups.</p>
-
+            <h2 data-translate-token="categories.manage.title">Manage Categories</h2>
+            <div id="manage-categories-content">
+                <p data-translate-token="categories.manage.intro">Add new categories and assign them to groups.</p>
                 <form id="add-category-form" style="margin-bottom: 30px;">
-                    <h3>Add New Category</h3>
-                    <div class="filter-grid"> <!-- Reuse grid for layout -->
+                    <h3 data-translate-token="categories.manage.add.title">Add New Category</h3>
+                    <div class="filter-grid">
                         <div class="form-group">
-                            <label for="new-category-name">Category Name:</label>
-                            <input type="text" id="new-category-name" placeholder="e.g., Groceries, Rent" required>
-                     </div>
-                     <div class="form-group">
-                         <label for="new-category-group">Category Group:</label>
-                         <select id="new-category-group" required>
-                             <option value="">-- Select Group --</option>
-                             <!-- Options populated by JS -->
-                             <!-- Consider adding a "Create New Group..." option later -->
-                         </select>
-                     </div>
-                     <div class="form-group">
-                         <button type="submit" class="button button-primary-action">Add Category</button>
-                     </div>
+                            <label for="new-category-name" data-translate-token="categories.manage.add.label.name">Category Name:</label>
+                            <input type="text" id="new-category-name" data-translate-placeholder="categories.manage.add.placeholder.name" placeholder="e.g., Groceries, Rent" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-category-group" data-translate-token="categories.manage.add.label.group">Category Group:</label>
+                            <select id="new-category-group" required>
+                                <option value="" data-translate-token="categories.manage.add.select.group.default">-- Select Group --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <button type="submit" class="button button-primary-action" data-translate-token="categories.manage.add.button.add">Add Category</button>
+                        </div>
                     </div>
                     <div id="add-category-status" style="margin-top: 10px;"></div>
                 </form>
-
                 <hr style="margin: 20px 0;">
-
-                <h3>Existing Categories by Group</h3>
+                <h3 data-translate-token="categories.manage.existing.title">Existing Categories by Group</h3>
                 <div id="existing-categories-list">
-                    <p>No categories added yet.</p> <!-- Placeholder -->
+                    <p data-translate-token="categories.manage.existing.none">No categories added yet.</p>
                 </div>
             </div>
         </section>
 
         <section id="dashboard-summary" class="main-section hidden">
-            <h2>Dashboard <span id="summary-month-display" style="font-size: 0.8em; color: #666;"></span></h2>
-
-            <!-- Welcome Guide INSIDE Dashboard (Initially Hidden) -->
-            <div id="welcome-guide-dashboard" class="card hidden" style="margin-bottom: 20px; background-color: #eef; border: 1px solid #ccd;"> <!-- Style slightly differently -->
-                <h3>Welcome to Zero Budget! 👋</h3>
-                <p>To get started, add your accounts and spending categories.</p>
+            <h2 data-translate-token="dashboard.title">Dashboard <span id="summary-month-display" style="font-size: 0.8em; color: #666;"></span></h2>
+            <div id="welcome-guide-dashboard" class="card hidden" style="margin-bottom: 20px; background-color: #eef; border: 1px solid #ccd;">
+                <h3 data-translate-token="dashboard.welcome.title">Welcome to Zero Budget! 👋</h3>
+                <p data-translate-token="dashboard.welcome.intro">To get started, add your accounts and spending categories.</p>
                 <ol style="margin-left: 20px; margin-bottom: 15px; font-size: 0.95em;">
-                    <li>Go to 'Accounts' to add your checking, savings, credit cards, etc.</li>
-                    <li>Go to 'Categories' to set up your spending plan (Groceries, Rent...).</li>
-                    <li>Add transactions using 'Add Income/Expense'.</li>
+                    <li data-translate-token="dashboard.welcome.step1">Go to 'Accounts' to add your checking, savings, credit cards, etc.</li>
+                    <li data-translate-token="dashboard.welcome.step2">Go to 'Categories' to set up your spending plan (Groceries, Rent...).</li>
+                    <li data-translate-token="dashboard.welcome.step3">Add transactions using 'Add Income/Expense'.</li>
                 </ol>
                 <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
-                    <button id="welcome-dash-go-accounts" class="button button-secondary" style="flex-grow: 1;">Go to Accounts</button>
-                    <button id="welcome-dash-go-categories" class="button button-secondary" style="flex-grow: 1;">Go to Categories</button>
-                    <button id="welcome-dash-dismiss" class="button button-primary-action" style="flex-grow: 1; background-color: #6c757d; border-color: #6c757d;">Got it, Dismiss</button>
+                    <button id="welcome-dash-go-accounts" class="button button-secondary" style="flex-grow: 1;" data-translate-token="dashboard.welcome.button.accounts">Go to Accounts</button>
+                    <button id="welcome-dash-go-categories" class="button button-secondary" style="flex-grow: 1;" data-translate-token="dashboard.welcome.button.categories">Go to Categories</button>
+                    <button id="welcome-dash-dismiss" class="button button-primary-action" style="flex-grow: 1; background-color: #6c757d; border-color: #6c757d;" data-translate-token="dashboard.welcome.button.dismiss">Got it, Dismiss</button>
                 </div>
                 <div id="welcome-dismiss-status" style="font-size: 0.85em; margin-top: 10px; color: #555;"></div>
             </div>
-            <!-- End Welcome Guide -->
-
-            <!-- Wrapper for REGULAR Dashboard Content -->
             <div id="dashboard-content-main">
                 <div class="summary-grid">
                     <div id="ready-to-assign" class="summary-box">
-                        <h3>Ready to Assign</h3>
-                        <p id="rta-value" class="summary-value">Loading...</p>
+                        <h3 data-translate-token="dashboard.rta.title">Ready to Assign</h3>
+                        <p id="rta-value" class="summary-value" data-translate-token="general.loading">Loading...</p>
                     </div>
-
                     <div id="account-balances" class="summary-box">
-                        <h3>Account Balances</h3>
+                        <h3 data-translate-token="dashboard.accounts.title">Account Balances</h3>
                         <ul id="balances-list" class="summary-list">
-                            <li>Loading...</li>
+                            <li data-translate-token="dashboard.accounts.loading">Loading...</li>
                         </ul>
                     </div>
-
                     <div id="month-summary" class="summary-box">
-                        <h3>Latest Month Summary</h3>
-                        <p><strong class="summary-label">Month:</strong> <span id="summary-month">--</span></p>
-                        <p><strong class="summary-label">Total Income:</strong> <span id="summary-income">Loading...</span></p>
-                        <p><strong class="summary-label">Net Spending:</strong> <span id="summary-spending">Loading...</span></p>
+                        <h3 data-translate-token="dashboard.monthSummary.title">Latest Month Summary</h3>
+                        <p><strong class="summary-label" data-translate-token="dashboard.monthSummary.month">Month:</strong> <span id="summary-month">--</span></p>
+                        <p><strong class="summary-label" data-translate-token="dashboard.monthSummary.income">Total Income:</strong> <span id="summary-income" data-translate-token="dashboard.monthSummary.loading">Loading...</span></p>
+                        <p><strong class="summary-label" data-translate-token="dashboard.monthSummary.spending">Net Spending:</strong> <span id="summary-spending" data-translate-token="dashboard.monthSummary.loading">Loading...</span></p>
                     </div>
                 </div>
             </div>
-            <!-- End Wrapper for Regular Content -->
         </section>
+
         <section id="charts-section" class="main-section hidden">
-            <h2>Charts</h2>
-            <!-- Chart Type Selection Buttons -->
+            <h2 data-translate-token="charts.title">Charts</h2>
             <div class="chart-type-selector">
-                <button id="show-pie-chart-btn" class="button chart-toggle-button active-chart-button">Spending Breakdown</button>
-                <button id="show-bar-chart-btn" class="button chart-toggle-button">Income/Expense Trend</button>
+                <button id="show-pie-chart-btn" class="button chart-toggle-button active-chart-button" data-translate-token="charts.type.pie">Spending Breakdown</button>
+                <button id="show-bar-chart-btn" class="button chart-toggle-button" data-translate-token="charts.type.bar">Income/Expense Trend</button>
             </div>
-            <!-- Spending Breakdown Pie Chart Area -->
             <div id="spending-pie-chart-area">
-                 <h3 class="view-header-nav"> <!-- Use h3 for sub-heading -->
-                    <button id="chart-prev-month" class="button button-small nav-button" aria-label="Previous month spending chart">< Prev</button>
-                    <span>Spending for <span id="chart-month-display">--</span></span>
-                    <button id="chart-next-month" class="button button-small nav-button" aria-label="Next month spending chart">Next ></button>
+                 <h3 class="view-header-nav">
+                    <button id="chart-prev-month" class="button button-small nav-button" data-translate-token="charts.pie.button.prev" data-translate-aria-label="charts.pie.prevMonth" aria-label="Previous month spending chart">< Prev</button>
+                    <span data-translate-token="charts.pie.title" data-translate-token-dynamic>Spending for <span id="chart-month-display">--</span></span> 
+                    <button id="chart-next-month" class="button button-small nav-button" data-translate-token="charts.pie.button.next" data-translate-aria-label="charts.pie.nextMonth" aria-label="Next month spending chart">Next ></button>
                 </h3>
                 <div id="spending-chart-container" class="chart-container">
-                    <canvas id="spendingPieChart"></canvas> <!-- Canvas element for Chart.js -->
+                    <canvas id="spendingPieChart"></canvas>
                 </div>
-                <p id="chart-no-data" class="hidden chart-no-data-msg">No positive spending data available for this period.</p>
+                <p id="chart-no-data" class="hidden chart-no-data-msg" data-translate-token="charts.pie.noData">No positive spending data available for this period.</p>
             </div>
-            <!-- Income/Expense Trend Bar Chart Area -->
-            <div id="income-expense-bar-chart-area" class="hidden"> <!-- Hidden by default -->
-                 <h3 style="text-align: center; margin-top: 20px;">Income vs. Expense Trend (Last 12 Months)</h3> <!-- Simple Title -->
+            <div id="income-expense-bar-chart-area" class="hidden">
+                 <h3 style="text-align: center; margin-top: 20px;" data-translate-token="charts.bar.title">Income vs. Expense Trend (Last 12 Months)</h3>
                 <div id="income-expense-chart-container" class="chart-container">
-                    <canvas id="incomeExpenseBarChart"></canvas> <!-- NEW Canvas for Bar Chart -->
+                    <canvas id="incomeExpenseBarChart"></canvas>
                 </div>
-                <p id="trend-chart-no-data" class="hidden chart-no-data-msg">No data available for the trend chart.</p> <!-- NEW No Data Message -->
+                <p id="trend-chart-no-data" class="hidden chart-no-data-msg" data-translate-token="charts.bar.noData">No data available for the trend chart.</p>
             </div>
         </section>
-        
-        <section id="yearly-summary-section" class="main-section hidden">
-            <h2 class="view-header-nav"> <!-- Reuse header style -->
-                <button id="yearly-prev-year" class="button button-small nav-button" aria-label="Previous year summary">< Prev Year</button>
-                <span>Yearly Summary (<span id="yearly-summary-year">--</span>)</span>
-                <button id="yearly-next-year" class="button button-small nav-button" aria-label="Next year summary">Next Year ></button>
-        </h2>
 
-            <div id="yearly-summary-content" class="card" style="margin-top: 15px;"> <!-- Wrap content in a card -->
+        <section id="yearly-summary-section" class="main-section hidden">
+            <h2 class="view-header-nav">
+                <button id="yearly-prev-year" class="button button-small nav-button" data-translate-token="yearly.view.button.prev" data-translate-aria-label="yearly.view.prevYear" aria-label="Previous year summary">< Prev Year</button>
+                <span data-translate-token="yearly.view.title" data-translate-token-dynamic>Yearly Summary (<span id="yearly-summary-year">--</span>)</span>
+                <button id="yearly-next-year" class="button button-small nav-button" data-translate-token="yearly.view.button.next" data-translate-aria-label="yearly.view.nextYear" aria-label="Next year summary">Next Year ></button>
+            </h2>
+            <div id="yearly-summary-content" class="card" style="margin-top: 15px;">
                 <div class="table-responsive-wrapper">
                     <table id="yearly-summary-table">
                         <thead>
                             <tr id="yearly-summary-thead-months">
-                                <th>Category</th>
-                                <!-- Month headers (Jan-Dec) + Total populated by JS -->
+                                <th data-translate-token="yearly.table.header.category">Category</th>
+                                <!-- Populated by JS -->
                             </tr>
                         </thead>
                         <tbody id="yearly-summary-tbody">
-                            <!-- Category rows populated by JS -->
-                            <tr><td colspan="14">Loading summary data...</td></tr> <!-- Colspan 1 (Category) + 12 (Months) + 1 (Total) = 14 -->
+                            <tr><td colspan="14" data-translate-token="yearly.table.loading">Loading summary data...</td></tr>
                         </tbody>
                         <tfoot id="yearly-summary-tfoot">
-                            <!-- Monthly Result row populated by JS -->
+                            <!-- Populated by JS -->
                         </tfoot>
                     </table>
                 </div>
-                <p id="yearly-summary-no-data" class="hidden" style="text-align: center; margin-top: 15px; font-style: italic;">No transaction data available for this year.</p>
+                <p id="yearly-summary-no-data" class="hidden" style="text-align: center; margin-top: 15px; font-style: italic;" data-translate-token="yearly.table.noData.general" data-translate-token-dynamic>No transaction data available for this year.</p>
             </div>
         </section>
+
         <section id="budget-view" class="main-section hidden">
-            <h2 class="view-header-nav"> <!-- Add class for potential styling -->
-                <button id="budget-prev-month" class="button button-small nav-button" aria-label="Previous month budget">< Prev</button>
-                <span>Budget for <span id="budget-view-month">--</span></span>
-                <button id="budget-next-month" class="button button-small nav-button" aria-label="Next month budget">Next ></button>
+            <h2 class="view-header-nav">
+                <button id="budget-prev-month" class="button button-small nav-button" data-translate-token="budget.view.button.prev" data-translate-aria-label="budget.view.prevMonth" aria-label="Previous month budget">< Prev</button>
+                <span data-translate-token="budget.view.title" data-translate-token-dynamic>Budget for <span id="budget-view-month">--</span></span>
+                <button id="budget-next-month" class="button button-small nav-button" data-translate-token="budget.view.button.next" data-translate-aria-label="budget.view.nextMonth" aria-label="Next month budget">Next ></button>
             </h2>
-            <div id="budget-view-rta-container" class="summary-box" style="margin-bottom: 15px; text-align: center; background-color: #f0f9f0;"> <!-- Optional: Slightly different background -->
-                <h3>Ready to Assign</h3>
-                <p id="budget-view-rta-value" class="summary-value">Loading...</p>
+            <div id="budget-view-rta-container" class="summary-box" style="margin-bottom: 15px; text-align: center; background-color: #f0f9f0;">
+                <h3 data-translate-token="budget.view.rta.title">Ready to Assign</h3>
+                <p id="budget-view-rta-value" class="summary-value" data-translate-token="budget.view.rta.loading">Loading...</p>
            </div>
             <div class="table-responsive-wrapper">
                 <table id="budget-table">
                     <thead>
                         <tr>
-                            <th>Category</th>
-                            <th class="currency">Previous</th>
-                            <th class="currency">Budgeted</th>
-                            <th class="currency">Activity</th>
-                            <th class="currency">Available</th>
+                            <th data-translate-token="budget.table.header.category">Category</th>
+                            <th class="currency" data-translate-token="budget.table.header.previous">Previous</th>
+                            <th class="currency" data-translate-token="budget.table.header.budgeted">Budgeted</th>
+                            <th class="currency" data-translate-token="budget.table.header.activity">Activity</th>
+                            <th class="currency" data-translate-token="budget.table.header.available">Available</th>
                         </tr>
                     </thead>
                     <tbody id="budget-tbody">
-                        <!-- Budget rows populated by JS -->
-                        <tr><td colspan="5">Loading budget data...</td></tr>
+                        <tr><td colspan="5" data-translate-token="budget.table.loading">Loading budget data...</td></tr>
                     </tbody>
+                    <tfoot> <!-- Added tfoot for consistency -->
+                         <tr>
+                             <th data-translate-token="budget.table.header.total">Totals</th> <!-- Add a label for totals -->
+                             <th></th> <!-- Placeholder for Previous total if needed -->
+                             <td id="total-budgeted-value" class="currency">--</td>
+                             <td id="total-spent-value" class="currency">--</td>
+                             <td id="total-available-value" class="currency">--</td>
+                         </tr>
+                     </tfoot>
                 </table>
             </div>
-             <p id="budget-no-data" class="hidden" style="text-align: center; margin-top: 15px; font-style: italic;">No budget data available for this period.</p>
+             <p id="budget-no-data" class="hidden" style="text-align: center; margin-top: 15px; font-style: italic;" data-translate-token="budget.table.noData">No budget data available for this period.</p>
         </section>
-        <section id="add-expense-form" class="main-section hidden"> <!-- Hide initially -->
-            <h2>Add New Expense/Income</h2>
+
+        <section id="add-expense-form" class="main-section hidden">
+            <h2 data-translate-token="addForm.title">Add New Expense/Income</h2>
             <form id="new-tx-form">
-                <div class="filter-grid"> <!-- Reuse filter grid styling -->
+                <div class="filter-grid">
                     <div class="form-group">
-                        <label for="tx-type">Type:</label>
+                        <label for="tx-type" data-translate-token="addForm.label.type">Type:</label>
                         <select id="tx-type" required>
-                            <option value="expense" selected>Expense</option>
-                            <option value="income">Income</option>
-                            <option value="refund">Refund</option>
-                            <option value="transfer">Transfer</option>
+                            <option value="expense" selected data-translate-token="addForm.type.expense">Expense</option>
+                            <option value="income" data-translate-token="addForm.type.income">Income</option>
+                            <option value="refund" data-translate-token="addForm.type.refund">Refund</option>
+                            <option value="transfer" data-translate-token="addForm.type.transfer">Transfer</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="tx-date">Date:</label>
+                        <label for="tx-date" data-translate-token="addForm.label.date">Date:</label>
                         <input type="date" id="tx-date" required>
                     </div>
                     <div class="form-group">
-                        <label for="tx-account">Account:</label>
+                        <label for="tx-account" data-translate-token="addForm.label.account">Account:</label>
                         <select id="tx-account" required>
-                            <option value="">-- Select Account --</option>
-                            <!-- Options populated by JS -->
+                            <option value="" data-translate-token="addForm.select.account.default">-- Select Account --</option>
                         </select>
                     </div>
                     <div class="form-group" id="payee-group">
-                        <label for="tx-payee" id="payee-label">Payee:</label> <!-- Label will change -->
-                        <input type="text" id="tx-payee" placeholder="e.g., Coffee Shop">
-                        <select id="tx-transfer-to-account" class="hidden" required> <!-- Initially hidden dropdown for "To" Account -->
-                            <option value="">-- Select Destination Account --</option>
-                            <!-- Options populated by JS -->
+                        <label for="tx-payee" id="payee-label" data-translate-token="addForm.label.payee">Payee:</label>
+                        <input type="text" id="tx-payee" data-translate-placeholder="addForm.placeholder.payee" placeholder="e.g., Coffee Shop">
+                        <select id="tx-transfer-to-account" class="hidden" required>
+                            <option value="" data-translate-token="addForm.select.toAccount.default">-- Select Destination Account --</option>
                         </select>
                     </div>
-                    <div class="form-group" id="category-group"> 
-                        <label for="tx-category" id="category-label">Category:</label> 
+                    <div class="form-group" id="category-group">
+                        <label for="tx-category" id="category-label" data-translate-token="addForm.label.category">Category:</label>
                         <select id="tx-category" required>
-                             <option value="">-- Select Category --</option>
-                            <!-- Options populated by JS, excluding Savings/Archived? -->
+                             <option value="" data-translate-token="addForm.select.category.default">-- Select Category --</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="tx-amount">Amount:</label>
-                        <input type="text" id="tx-amount" required placeholder="e.g., 5,50" inputmode="decimal" autocomplete="off">
+                        <label for="tx-amount" data-translate-token="addForm.label.amount">Amount:</label>
+                        <input type="text" id="tx-amount" required data-translate-placeholder="addForm.placeholder.amount" placeholder="e.g., 5,50" inputmode="decimal" autocomplete="off">
                     </div>
-
                 </div>
                  <div class="form-group" style="margin-top: 15px;">
-                     <label for="tx-memo">Memo (Optional):</label>
+                     <label for="tx-memo" data-translate-token="addForm.label.memo">Memo (Optional):</label>
                      <textarea id="tx-memo" rows="2"></textarea>
                  </div>
-                 <button type="submit" class="button button-primary-action">Add Transaction</button>
+                 <button type="submit" class="button button-primary-action" data-translate-token="addForm.button.add">Add Transaction</button>
                  <div id="add-tx-status" style="margin-top: 10px;"></div>
             </form>
         </section>
-        <section id="sync-section" class="main-section hidden card">
-            <h2 id="sync-section-title">Import / Export Data</h2> 
 
+        <section id="sync-section" class="main-section hidden card">
+            <h2 id="sync-section-title" data-translate-token="importExport.title">Import / Export Data</h2>
              <div id="sync-standalone-content">
-                <h3>Export Data</h3>
-                <p>Export all locally stored data for backup purposes.</p>
-                <button id="export-standalone-button" class="button button-secondary">Export All Data</button>
+                <h3 data-translate-token="importExport.export.title">Export Data</h3>
+                <p data-translate-token="importExport.export.description">Export all locally stored data for backup purposes.</p>
+                <button id="export-standalone-button" class="button button-secondary" data-translate-token="importExport.export.button">Export All Data</button>
                  <div id="export-standalone-status" style="margin-top: 10px;"></div>
                  <hr style="margin: 30px 0;">
-
-                 <h3>Import Data (Replaces Existing)</h3>
-                 <p style="color: #dc3545; font-weight: bold;">Warning: Importing will delete ALL current budget data (transactions, accounts, categories, budgets) on this device before loading the file.</p>
+                 <h3 data-translate-token="importExport.import.title">Import Data (Replaces Existing)</h3>
+                 <p style="color: #dc3545; font-weight: bold;" data-translate-token="importExport.import.warning">Warning: Importing will delete ALL current budget data (transactions, accounts, categories, budgets) on this device before loading the file.</p>
                  <div class="form-group">
-                    <label for="import-standalone-file">Select Backup File (.json):</label>
+                    <label for="import-standalone-file" data-translate-token="importExport.import.label.selectFile">Select Backup File (.json):</label>
                     <input type="file" id="import-standalone-file" accept=".json" style="display: block; margin-top: 5px;">
                  </div>
-                 <button id="import-standalone-button" class="button button-danger" disabled style="margin-top: 10px;">Import File and Replace Data</button>
+                 <button id="import-standalone-button" class="button button-danger" disabled style="margin-top: 10px;" data-translate-token="importExport.import.button">Import File and Replace Data</button>
                  <div id="import-standalone-status" style="margin-top: 10px;"></div>
              </div>
         </section>
+
         <section id="transactions-list" class="main-section hidden">
             <div class="filter-controls card">
-                <h3>Filter Transactions</h3>
+                <h3 data-translate-token="transactions.filter.title">Filter Transactions</h3>
                 <div class="filter-grid">
                     <div class="form-group">
-                        <label for="filter-search">Search (Payee/Memo):</label>
-                        <input type="text" id="filter-search" placeholder="e.g., supermarket, amazon">
+                        <label for="filter-search" data-translate-token="transactions.filter.label.search">Search (Payee/Memo):</label>
+                        <input type="text" id="filter-search" data-translate-placeholder="transactions.filter.placeholder.search" placeholder="e.g., supermarket, amazon">
                     </div>
                     <div class="form-group">
-                        <label for="filter-account">Account:</label>
+                        <label for="filter-account" data-translate-token="transactions.filter.label.account">Account:</label>
                         <select id="filter-account">
-                            <option value="">-- All Accounts --</option>
-                            <!-- Accounts populated by JS -->
+                            <option value="" data-translate-token="transactions.filter.select.account.all">-- All Accounts --</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="filter-category">Category:</label>
+                        <label for="filter-category" data-translate-token="transactions.filter.label.category">Category:</label>
                         <select id="filter-category">
-                            <option value="">-- All Categories --</option>
-                            <!-- Categories populated by JS -->
+                            <option value="" data-translate-token="transactions.filter.select.category.all">-- All Categories --</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="filter-start-date">Start Date:</label>
+                        <label for="filter-start-date" data-translate-token="transactions.filter.label.startDate">Start Date:</label>
                         <input type="date" id="filter-start-date">
                     </div>
                     <div class="form-group">
-                        <label for="filter-end-date">End Date:</label>
+                        <label for="filter-end-date" data-translate-token="transactions.filter.label.endDate">End Date:</label>
                         <input type="date" id="filter-end-date">
                     </div>
                     <div class="form-group">
-                        <button type="button" id="reset-filters" class="button button-primary-action">Reset Filters</button>
+                        <button type="button" id="reset-filters" class="button button-secondary" data-translate-token="transactions.filter.button.reset">Reset Filters</button> <!-- Changed to secondary -->
                     </div>
                 </div>
             </div>
-            <h2>Transactions</h2>
-            <p id="no-results-message" class="hidden" style="text-align: center; margin: 15px; font-style: italic;">No transactions match the current filters.</p>
+            <h2 data-translate-token="transactions.title">Transactions</h2>
+            <p id="no-results-message" class="hidden" style="text-align: center; margin: 15px; font-style: italic;" data-translate-token="transactions.table.noMatch">No transactions match the current filters.</p>
             <div class="table-responsive-wrapper">
                 <table id="transactions-table">
                     <thead>
                         <tr>
-                            <th class="th-icon"></th> <!--  narrow header for icon -->
-                            <th>Date</th>
-                            <th>Account</th>
-                            <th>Payee</th>
-                            <th>Category</th>
-                            <th class="currency">Amount</th>
-                            <th class="th-action"></th> 
+                            <th class="th-icon"></th>
+                            <th data-translate-token="transactions.table.header.date">Date</th>
+                            <th data-translate-token="transactions.table.header.account">Account</th>
+                            <th data-translate-token="transactions.table.header.payee">Payee</th>
+                            <th data-translate-token="transactions.table.header.category">Category</th>
+                            <th class="currency" data-translate-token="transactions.table.header.amount">Amount</th>
+                            <th class="th-action"></th>
                         </tr>
                     </thead>
                     <tbody id="transactions-tbody">
-                        <tr><td colspan="7">Please load data...</td></tr> <!-- Adjust colspan -->
+                        <tr><td colspan="7" data-translate-token="transactions.table.loading">Please load data...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -379,7 +376,7 @@
     </main>
 
     <footer>
-        <p>© <span id="current-year"></span> Zero-Budget</p>
+        <p data-translate-token="footer.copyright" data-translate-token-dynamic>© <span id="current-year"></span> Zero-Budget</p>
     </footer>
 
 </body>

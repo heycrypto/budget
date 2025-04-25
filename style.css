@@ -661,8 +661,77 @@ footer {
     border-bottom: none; 
     font-weight: normal; /* Make it less prominent than main section header */
 }
-/* --- Responsive Table Styles --- */
 
+#yearly-summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+#yearly-summary-content .table-responsive-wrapper {
+    max-height: none;      /* Remove any maximum height restriction */
+    overflow-y: visible;   /* Prevent vertical scrollbars from appearing */
+    border: none; /* Optional: Remove the border if it looks odd without scroll */
+}
+
+#yearly-summary-table th,
+#yearly-summary-table td {
+    border: 1px solid #ddd;
+    padding: 6px 8px; 
+    text-align: right; /* Default to right for numbers */
+    vertical-align: middle;
+    white-space: nowrap; /* Crucial for horizontal scroll */
+}
+
+/* Left-align the Category column header and body cells */
+#yearly-summary-table th:first-child,
+#yearly-summary-table td:first-child {
+    text-align: left;
+    white-space: normal; /* Allow category names to wrap */
+}
+
+#yearly-summary-table thead th {
+    background-color: #e9ecef;
+}
+
+#yearly-summary-table tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+/* Style for the Income/Expense group separator (optional) */
+#yearly-summary-tbody tr.expense-group-separator td {
+    border-top: 2px solid #aaa;
+    font-weight: bold;
+    background-color: #f0f0f0;
+    padding: 8px;
+    text-align: center;
+}
+
+/* Style for the Monthly Result row in the footer */
+#yearly-summary-table tfoot tr.monthly-result-row th,
+#yearly-summary-table tfoot tr.monthly-result-row td {
+    font-weight: bold;
+    background-color: #e9ecef;
+    border-top: 2px solid #ccc;
+}
+
+#yearly-summary-table tfoot tr.monthly-result-row th { /* "Monthly Result" label */
+    text-align: left;
+}
+
+#yearly-summary-tbody tr.yearly-total-row th, /* Target TH in total row */
+#yearly-summary-tbody tr.yearly-total-row td {
+    font-weight: bold;
+    background-color: #e9ecef; /* Match header/footer background */
+    border-top: 1px solid #ccc;    /* Add a line above */
+    border-bottom: 1px solid #ccc; /* Add a line below */
+}
+
+#yearly-summary-no-data {
+    color: #6c757d;
+}
+
+/* --- Responsive Table Styles --- */
 /* Apply only on screens smaller than, say, 768px */
 @media (max-width: 768px) {
     .chart-container {
@@ -938,73 +1007,46 @@ td.editable-budget input[type="number"]::-webkit-inner-spin-button {
     margin: 0;
 }
 
-#yearly-summary-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 15px;
+/* --- YEARLY SUMMARY specific responsive overrides --- */
+#yearly-summary-content .table-responsive-wrapper {
+    max-height: none;
+    overflow-y: visible;
+    border: none; /* Optional: remove mobile border */
+     /* Ensure horizontal scroll is still possible if needed */
+     overflow-x: auto;
+     -webkit-overflow-scrolling: touch; /* Keep smooth scroll for horizontal */
+     max-height: initial; /* Another way to reset max-height */
+     overflow-y: initial; /* Another way to reset overflow */
 }
 
-#yearly-summary-table th,
-#yearly-summary-table td {
-    border: 1px solid #ddd;
-    padding: 6px 8px; 
-    text-align: right; /* Default to right for numbers */
-    vertical-align: middle;
-    white-space: nowrap; /* Crucial for horizontal scroll */
-}
-
+ /* Keep sticky headers for horizontal scroll */
+ #yearly-summary-content .table-responsive-wrapper #yearly-summary-table thead th {
+     position: -webkit-sticky;
+     position: sticky;
+     top: 0;
+     z-index: 10;
+ }
 #yearly-summary-table thead th {
-    background-color: #e9ecef;
-    position: -webkit-sticky; /* Make headers sticky within scroll wrapper */
+    /* Make headers sticky within scroll wrapper on mobile */
+    position: -webkit-sticky;
     position: sticky;
     top: 0;
     z-index: 10; /* Keep header above body */
 }
 
-/* Left-align the Category column header and body cells */
+#yearly-summary-table th,
+#yearly-summary-table td {
+    padding: 6px 8px; /* Slightly reduce padding on mobile */
+    font-size: 0.9em; /* Slightly smaller font on mobile */
+    white-space: nowrap; /* <<< FORCE nowrap for horizontal scroll on mobile */
+}
+
+/* Ensure first column can still wrap on mobile if needed */
 #yearly-summary-table th:first-child,
 #yearly-summary-table td:first-child {
-    text-align: left;
-    white-space: normal; /* Allow category names to wrap */
+    white-space: normal; /* <<< Override nowrap for category column */
 }
 
-
-#yearly-summary-table tbody tr:nth-child(even) {
-    background-color: #f8f9fa;
-}
-
-/* Style for the Income/Expense group separator (optional) */
-#yearly-summary-tbody tr.expense-group-separator td {
-    border-top: 2px solid #aaa;
-    font-weight: bold;
-    background-color: #f0f0f0;
-    padding: 8px;
-    text-align: center;
-}
-
-/* Style for the Monthly Result row in the footer */
-#yearly-summary-table tfoot tr.monthly-result-row th,
-#yearly-summary-table tfoot tr.monthly-result-row td {
-    font-weight: bold;
-    background-color: #e9ecef;
-    border-top: 2px solid #ccc;
-}
-
-#yearly-summary-table tfoot tr.monthly-result-row th { /* "Monthly Result" label */
-    text-align: left;
-}
-
-#yearly-summary-no-data {
-     color: #6c757d;
-}
-
-#yearly-summary-tbody tr.yearly-total-row th, /* Target TH in total row */
-#yearly-summary-tbody tr.yearly-total-row td {
-    font-weight: bold;
-    background-color: #e9ecef; /* Match header/footer background */
-    border-top: 1px solid #ccc;    /* Add a line above */
-    border-bottom: 1px solid #ccc; /* Add a line below */
-}
 /* Base button styles (assuming you have some already) */
 .button {
     /* Your existing base button styles: padding, border, cursor, etc. */
