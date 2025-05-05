@@ -6,7 +6,7 @@
 
     "menu.toggle.open": "Άνοιγμα Μενού",
     "menu.toggle.close": "Κλείσιμο Μενού",
-    "menu.addTransaction": "Νέο Έσοδο/Έξοδο",
+    "menu.addTransaction": "Νέα Συναλλαγή",
     "menu.transactions": "Συναλλαγές",
     "menu.accounts": "Λογαριασμοί",
     "menu.categories": "Κατηγορίες",
@@ -67,7 +67,7 @@
 
     "charts.title": "Γραφήματα",
     "charts.type.pie": "Ανάλυση Εξόδων",
-    "charts.type.bar": "Τάση Εσόδων/Εξόδων",
+    "charts.type.bar": "Έσοδα/Έξοδα/Αποταμίεση",
     "charts.pie.title": "Έξοδα για {month}",
     "charts.pie.prevMonth": "Γράφημα εξόδων προηγούμενου μήνα",
     "charts.pie.nextMonth": "Γράφημα εξόδων επόμενου μήνα",
@@ -82,6 +82,10 @@
     "charts.bar.tooltip.label": "{label}: {amount}",
     "charts.bar.datasetLabel.income": "Έσοδα",
     "charts.bar.datasetLabel.expenses": "Έξοδα",
+    "charts.bar.datasetLabel.savingsRate": "% Αποταμίευσης", 
+    "charts.bar.yAxisLabel.savingsRate": "Ποσοστό Αποταμίεσης (%)", 
+    "charts.bar.tooltip.label.amount": "{label}: {amount}", 
+    "charts.bar.tooltip.label.savingsRate": "{label}: {rate}%", 
 
     "yearly.view.title": "Ετήσια Σύνοψη ({year})",
     "yearly.view.prevYear": "Σύνοψη προηγούμενου έτους",
@@ -110,7 +114,7 @@
     "yearly.table.group.expenses": "Έξοδα",
     "yearly.table.footer.monthlyResult": "Μηνιαίο Αποτέλεσμα",
 
-    "addForm.title": "Νέο Έσοδο/Έξοδο",
+    "addForm.title": "Νέα Συναλλαγή",
     "addForm.label.type": "Τύπος:",
     "addForm.type.expense": "Έξοδο",
     "addForm.type.income": "Έσοδο",

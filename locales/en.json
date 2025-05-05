@@ -6,7 +6,7 @@
 
     "menu.toggle.open": "Open Menu",
     "menu.toggle.close": "Close Menu",
-    "menu.addTransaction": "Add Income/Expense",
+    "menu.addTransaction": "Add Transaction",
     "menu.transactions": "Transactions",
     "menu.accounts": "Accounts",
     "menu.categories": "Categories",
@@ -67,7 +67,7 @@
 
     "charts.title": "Charts",
     "charts.type.pie": "Spending Breakdown",
-    "charts.type.bar": "Income/Expense Trend",
+    "charts.type.bar": "Income/Expense/Savings Rate",
     "charts.pie.title": "Spending for {month}",
     "charts.pie.prevMonth": "Previous month spending chart",
     "charts.pie.nextMonth": "Next month spending chart",
@@ -82,6 +82,10 @@
     "charts.bar.tooltip.label": "{label}: {amount}",
     "charts.bar.datasetLabel.income": "Income",
     "charts.bar.datasetLabel.expenses": "Expenses",
+    "charts.bar.datasetLabel.savingsRate": "Savings Rate", 
+    "charts.bar.yAxisLabel.savingsRate": "Savings Rate (%)", 
+    "charts.bar.tooltip.label.amount": "{label}: {amount}", 
+    "charts.bar.tooltip.label.savingsRate": "{label}: {rate}%", 
 
     "yearly.view.title": "Yearly Summary ({year})",
     "yearly.view.prevYear": "Previous year summary",
@@ -110,7 +114,7 @@
     "yearly.table.group.expenses": "Expenses",
     "yearly.table.footer.monthlyResult": "Monthly Result",
 
-    "addForm.title": "Add New Expense/Income",
+    "addForm.title": "Add New Transaction",
     "addForm.label.type": "Type:",
     "addForm.type.expense": "Expense",
     "addForm.type.income": "Income",

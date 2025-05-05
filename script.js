@@ -2345,8 +2345,8 @@ function calculateYearlySummaryData(year, transactions = [], categories = [], gr
         const category = tx.category || (tx.type === 'income' ? UNKNOWN_INCOME_SOURCE : UNCATEGORIZED);
         const group = groupsData[category];
 
-        // Skip categories we don't want in the summary (Savings, Archived)
-        if (group === SAVINGS_GROUP_NAME || group === ARCHIVED_GROUP_NAME) {
+        // Skip categories we don't want in the summary
+        if (group === SAVINGS_GROUP_NAME) {
             return;
         }
 
@@ -2699,51 +2699,50 @@ function calculateSpendingBreakdown(period, transactions = [], groupsData = {}) 
 }
 
 /**
- * Calculates income and expense totals for the last 12 months.
+ * Calculates income, expense totals, and savings rate for the last 12 months.
  * @param {Array} transactions List of all transactions.
- * @returns {{labels: Array<string>, incomeData: Array<number>, expenseData: Array<number>}|null} Data for the bar chart or null.
+ * @returns {{labels: Array<string>, incomeData: Array<number>, expenseData: Array<number>, savingsRateData: Array<number>}|null} Data for the bar/line chart or null.
  */
 function calculateIncomeExpenseTrendData(transactions = []) {
     if (!transactions || transactions.length === 0) {
         return null;
     }
 
-    // 1. Determine the 12-month range (ending in the latest transaction month or current month)
+    // 1. Determine the 12-month range
     const latestMonth = findLatestMonth(transactions) || getCurrentRealMonth();
-    const endDate = new Date(latestMonth + '-01T12:00:00Z'); // Use UTC noon to avoid timezone issues near month end
+    const endDate = new Date(latestMonth + '-01T12:00:00Z');
 
-    const months = []; // Array to store { period: "YYYY-MM", income: 0, expense: 0 }
-    const labels = []; // Array for chart labels (e.g., "Jan 24")
+    const months = []; // Array to store { period: "YYYY-MM", income: 0, expense: 0, savingsRate: 0 }
+    const labels = [];
 
     for (let i = 0; i < 12; i++) {
-        // Calculate the date for the start of the month, 'i' months ago
         const targetDate = new Date(endDate);
-        targetDate.setUTCMonth(endDate.getUTCMonth() - i); // Go back i months
+        targetDate.setUTCMonth(endDate.getUTCMonth() - i);
 
         const year = targetDate.getUTCFullYear();
         const month = (targetDate.getUTCMonth() + 1).toString().padStart(2, '0');
         const period = `${year}-${month}`;
 
-        // Format label (e.g., "Jan 24")
         const shortMonthName = targetDate.toLocaleString('default', { month: 'short', timeZone: 'UTC' });
         const shortYear = year.toString().slice(-2);
         labels.push(`${shortMonthName} ${shortYear}`);
 
-        months.push({ period: period, income: 0, expense: 0 });
+        // Initialize with savingsRate property
+        months.push({ period: period, income: 0, expense: 0, savingsRate: 0 });
     }
 
-    months.reverse(); // Put in chronological order (oldest first)
+    months.reverse(); // Chronological order
     labels.reverse();
 
-    // 2. Iterate through transactions and aggregate
+    // 2. Iterate through transactions and aggregate income/expense
     transactions.forEach(tx => {
-        if (!tx.date || tx.type === 'transfer') return; // Skip transfers and tx without dates
+        if (!tx.date || tx.type === 'transfer') return;
 
         const period = tx.date.substring(0, 7);
         const monthData = months.find(m => m.period === period);
 
         if (monthData) {
-             try {
+            try {
                 const amount = parseFloat(tx.amount || 0);
                 if (isNaN(amount)) return;
 
@@ -2752,28 +2751,43 @@ function calculateIncomeExpenseTrendData(transactions = []) {
                 } else if (tx.type === 'expense') {
                     monthData.expense += amount;
                 } else if (tx.type === 'refund') {
-                    monthData.expense -= amount; // Refunds reduce expense total
+                    monthData.expense -= amount;
                 }
             } catch (e) {
-                 console.warn(`Error parsing amount during trend calc: ${e}`, tx);
+                console.warn(`Error parsing amount during trend calc: ${e}`, tx);
             }
         }
     });
 
-    // 3. Extract data for Chart.js
+    // 3. Calculate Savings Rate for each month AFTER aggregation
+    months.forEach(m => {
+        const income = m.income;
+        const expense = m.expense;
+        let rate = 0;
+        if (income > 0) { // Avoid division by zero
+            rate = ((income - expense) / income) * 100;
+        }
+        // Clamp rate between 0 and (theoretically) infinity if expenses are negative
+        // Or decide on a max display rate like 100% or 200%? Let's keep it raw for now.
+        m.savingsRate = isNaN(rate) ? 0 : rate; // Ensure it's not NaN
+    });
+
+    // 4. Extract data for Chart.js
     const incomeData = months.map(m => m.income);
     const expenseData = months.map(m => m.expense);
+    const savingsRateData = months.map(m => m.savingsRate); // Get the calculated rates
 
     // Check if there's any actual data to display
-    const hasData = incomeData.some(d => d > 0) || expenseData.some(d => d > 0);
+    const hasData = incomeData.some(d => d > 0) ||
+                    expenseData.some(d => d > 0) ||
+                    savingsRateData.some(d => !isNaN(d) && Math.abs(d) > 0.01); // Check if any rate is non-zeroish
+
     if (!hasData) {
         return null;
     }
 
-
-    return { labels, incomeData, expenseData };
+    return { labels, incomeData, expenseData, savingsRateData }; // <<< RETURN savingsRateData
 }
-
 
 // --- Chart Rendering Functions ---
 
@@ -2834,82 +2848,155 @@ function renderSpendingChart(chartData) {
 }
 
 /**
- * Renders the Income vs. Expense bar chart using Chart.js.
- * @param {{labels: Array<string>, incomeData: Array<number>, expenseData: Array<number>}|null} chartData Data object or null.
+ * Renders the Income vs. Expense bar chart with Savings Rate line using Chart.js.
+ * @param {{labels: Array<string>, incomeData: Array<number>, expenseData: Array<number>, savingsRateData: Array<number>}|null} chartData Data object or null.
  */
 function renderIncomeExpenseBarChart(chartData) {
     const canvas = incomeExpenseBarChartCanvas;
     const noDataMsg = trendChartNoDataMsg;
-    const container = incomeExpenseBarChartArea; // The container div
+    const container = incomeExpenseBarChartArea;
 
     if (!canvas || !noDataMsg || !container) {
         console.error("Cannot render trend chart: Required elements not found.");
         return;
     }
 
-    // Hide message, show container by default
     noDataMsg.classList.add('hidden');
-    // container.classList.remove('hidden'); // Visibility is controlled by switchChartView now
 
-    // Destroy previous chart instance if it exists
     if (incomeExpenseBarChartInstance) {
         incomeExpenseBarChartInstance.destroy();
         incomeExpenseBarChartInstance = null;
         console.log("Destroyed previous trend chart instance.");
     }
 
-    // Handle case where there is no data
     if (!chartData) {
         console.log("No data to render for trend chart.");
-        noDataMsg.classList.remove('hidden'); // Show the 'no data' message
+        noDataMsg.classList.remove('hidden');
         return;
-    } else {
     }
-
 
     const ctx = canvas.getContext('2d');
     incomeExpenseBarChartInstance = new Chart(ctx, {
-        type: 'bar',
+        type: 'bar', // Base type is bar
         data: {
-            labels: chartData.labels, // Labels (e.g., "Jan 24") are usually fine as is
+            labels: chartData.labels,
             datasets: [
                 {
-                    label: translate('charts.bar.datasetLabel.income'), 
+                    label: translate('charts.bar.datasetLabel.income'),
                     data: chartData.incomeData,
                     backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                    borderColor: 'rgba(75, 192, 192, 1)', borderWidth: 1
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1,
+                    yAxisID: 'y', // Assign to the left axis (default)
+                    order: 2 // Render bars behind line
                 },
                 {
-                    label: translate('charts.bar.datasetLabel.expenses'), 
+                    label: translate('charts.bar.datasetLabel.expenses'),
                     data: chartData.expenseData,
                     backgroundColor: 'rgba(255, 99, 132, 0.6)',
-                    borderColor: 'rgba(255, 99, 132, 1)', borderWidth: 1
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    yAxisID: 'y', // Assign to the left axis (default)
+                    order: 2 // Render bars behind line
+                },
+                // --- START: New Savings Rate Dataset ---
+                {
+                    label: translate('charts.bar.datasetLabel.savingsRate'),
+                    data: chartData.savingsRateData, // Use the new data
+                    type: 'line', // Specify this dataset is a line
+                    borderColor: 'rgba(54, 162, 235, 1)', // Blue color
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    yAxisID: 'y1', // Assign to the NEW right axis
+                    tension: 0.1, // Optional: slight curve to the line
+                    borderWidth: 2, // Make line visible
+                    pointRadius: 3, // Show points
+                    pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                    order: 1 // Render line on top
                 }
+                // --- END: New Savings Rate Dataset ---
             ]
         },
         options: {
-            responsive: true, maintainAspectRatio: false,
-            scales: { y: { beginAtZero: true, ticks: { callback: (value) => formatCurrency(value) } } },
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { // Improve tooltip interaction
+                mode: 'index', // Show tooltips for all datasets at the same x-index
+                intersect: false,
+            },
+            scales: {
+                // --- START: Configure Left Y-Axis (Currency) ---
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: translate('charts.bar.yAxisLabel.amount') // Use token
+                    },
+                    ticks: {
+                        callback: (value) => formatCurrency(value) // Format as currency
+                    }
+                },
+                // --- END: Configure Left Y-Axis ---
+
+                // --- START: Configure Right Y-Axis (Percentage) ---
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    // Adjust min/max as needed, 0-100 is typical for rates
+                    min: 0,
+                    // max: 100, // Optional: Set a fixed max if rates won't exceed 100%
+                    suggestedMax: 100, // Suggest 100 if data is less
+                    title: {
+                        display: true,
+                        text: translate('charts.bar.yAxisLabel.savingsRate') // Use token
+                    },
+                    ticks: {
+                        callback: (value) => value.toFixed(0) + '%' // Format as percentage
+                    },
+                    // Ensure grid lines from this axis don't clutter the bar area
+                    grid: {
+                        drawOnChartArea: false, // Only draw the axis line itself
+                    },
+                }
+                // --- END: Configure Right Y-Axis ---
+            },
             plugins: {
-                legend: { position: 'top' },
+                legend: {
+                    position: 'top'
+                },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            let label = context.dataset.label || ''; // Already translated label
-                            const value = context.parsed.y || 0;
-                            // Use translate for the tooltip format string
-                            return translate('charts.bar.tooltip.label', {
-                                label: label,
-                                amount: formatCurrency(value)
-                            });
+                            const value = context.parsed.y ?? 0; // Use nullish coalescing
+                            const datasetLabel = context.dataset.label || '';
+                            const isRate = context.dataset.yAxisID === 'y1'; // Check which axis
+
+                            if (isRate) {
+                                // Use specific token for savings rate tooltip
+                                return translate('charts.bar.tooltip.label.savingsRate', {
+                                    label: datasetLabel,
+                                    rate: value.toFixed(1) // Show one decimal for rate
+                                });
+                            } else {
+                                // Use specific token for amount tooltip
+                                return translate('charts.bar.tooltip.label.amount', {
+                                    label: datasetLabel,
+                                    amount: formatCurrency(value)
+                                });
+                            }
                         }
                     }
                 },
-                title: { display: false }
+                title: {
+                    display: false // Keep main title hidden as it's above chart
+                }
             }
         }
     });
-    console.log("Rendered new income/expense trend chart.");
+    console.log("Rendered new income/expense trend chart with savings rate.");
 }
 
 // --- Helper Functions --- 
